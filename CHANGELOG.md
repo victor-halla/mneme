@@ -5,6 +5,10 @@ release; o que ainda não foi publicado fica em `Unreleased`.
 
 ## [Unreleased]
 
+Nada pendente de publicação.
+
+## [0.1.0] - 2026-09-20
+
 ### Adicionado
 
 - Destino declarado para dado pessoal que não pode ser versionado: `privacy.sensitive_file` no
