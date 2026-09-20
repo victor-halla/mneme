@@ -361,6 +361,53 @@ class SetupTest(unittest.TestCase):
 
     # -- modo não interativo ---------------------------------------------------
 
+    def test_check_valida_sem_escrever_nada(self) -> None:
+        ok = subprocess.run(
+            [
+                sys.executable,
+                str(BRAIN_PY),
+                "setup",
+                "--check",
+                "--non-interactive",
+                "--instance-root",
+                str(self.instance),
+                "--hermes-profile",
+                str(self.profile),
+                "--harness",
+                "claude",
+            ],
+            cwd=self.home,
+            env=self.env,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        ruim = subprocess.run(
+            [
+                sys.executable,
+                str(BRAIN_PY),
+                "setup",
+                "--check",
+                "--non-interactive",
+                "--instance-root",
+                str(self.instance),
+                "--instance-remote",
+                "cache local sem url",
+            ],
+            cwd=self.home,
+            env=self.env,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+
+        self.assertEqual(ok.returncode, 0, ok.stderr)
+        self.assertIn("plano válido", ok.stdout)
+        self.assertNotEqual(ruim.returncode, 0)
+        self.assertIn("remote Git inválido", ruim.stderr)
+        self.assertFalse(self.instance.exists())
+        self.assertFalse((self.home / ".local").exists())
+
     def test_sem_terminal_nao_escreve_e_explica(self) -> None:
         completed = subprocess.run(
             [sys.executable, str(BRAIN_PY), "setup"],

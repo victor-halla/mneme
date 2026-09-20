@@ -554,6 +554,23 @@ def cmd_setup(args) -> int:
     plan.install = not args.no_install
     plan.commit = not args.no_commit
 
+    if args.check:
+        # Valida o plano inteiro sem escrever, para o instalador falhar antes de promover nada.
+        errors, warnings = setup_mod.validate(plan, home)
+        if args.json:
+            _emit({"ok": not errors, "errors": errors, "warnings": warnings}, True)
+            return 0 if not errors else 1
+        for warning in warnings:
+            print(f"aviso: {warning}", file=sys.stderr)
+        if errors:
+            print("configuração não aplicada", file=sys.stderr)
+            for error in errors:
+                print(f"  erro: {error}", file=sys.stderr)
+            return 1
+        print("plano válido")
+        print(setup_mod.describe(plan))
+        return 0
+
     dry_run = bool(getattr(args, "dry_run", False))
     interactive = not args.non_interactive and sys.stdin.isatty()
     described = False
@@ -705,6 +722,7 @@ def build_parser() -> argparse.ArgumentParser:
     setup.add_argument("--skills-base", help="base que recebe skills/brain-manager (ex.: ~/.claude)")
     setup.add_argument("--package-root", help="destino do runtime (default: ~/.local/share/mneme-package)")
     setup.add_argument("--non-interactive", action="store_true", help="aplica sem perguntar")
+    setup.add_argument("--check", action="store_true", help="valida o plano sem escrever nada")
     setup.add_argument("--yes", action="store_true", help="confirma automaticamente no modo interativo")
     setup.add_argument("--no-install", action="store_true", help="não instala runtime, skill e CLI")
     setup.add_argument("--no-commit", action="store_true", help="não commita a configuração da instância")
