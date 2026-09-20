@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 
 SYSTEM_DIR = Path(__file__).resolve().parents[1]
+PACKAGE_ROOT = SYSTEM_DIR.parent
 if str(SYSTEM_DIR) not in sys.path:
     sys.path.insert(0, str(SYSTEM_DIR))
 
@@ -50,6 +51,20 @@ def _emit(payload, as_json: bool) -> None:
 # ---------------------------------------------------------------------------
 # Comandos
 # ---------------------------------------------------------------------------
+
+
+def cmd_version(args) -> int:
+    version_file = PACKAGE_ROOT / "VERSION"
+    try:
+        version = version_file.read_text(encoding="utf-8").strip()
+    except OSError as exc:
+        print(f"erro: não foi possível ler {version_file}: {exc}", file=sys.stderr)
+        return 1
+    if args.json:
+        _emit({"name": "mneme", "version": version}, True)
+    else:
+        print(f"Mneme {version}")
+    return 0
 
 
 def cmd_status(brain: actions.Brain, args) -> int:
@@ -665,6 +680,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--dry-run", action="store_true", help="não escreve nada")
     sub = parser.add_subparsers(dest="command", required=True)
 
+    sub.add_parser("version", parents=[COMMON], help="mostra a versão instalada").set_defaults(func=cmd_version)
+
     instance = sub.add_parser("instance", parents=[COMMON], help="inicializa ou migra uma instância de dados")
     instance.add_argument("instance_action", choices=["init", "migrate"])
     instance.add_argument("--root", dest="instance_root", help="raiz da instância (default: ~/mneme)")
@@ -800,6 +817,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    if args.command == "version":
+        return cmd_version(args)
     if args.command == "instance":
         return cmd_instance(args)
     if args.command == "setup":

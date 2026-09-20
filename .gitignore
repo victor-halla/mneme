@@ -26,6 +26,7 @@ sessions/
 *.db-wal
 *.db-shm
 *.lock
+!requirements.lock
 
 # Ruído
 .DS_Store

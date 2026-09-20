@@ -57,6 +57,22 @@ class SetupTest(unittest.TestCase):
     def config(self) -> dict:
         return yaml.safe_load((self.instance / "mneme.yaml").read_text(encoding="utf-8"))
 
+    # -- versão ----------------------------------------------------------------
+
+    def test_version_funciona_sem_instancia(self) -> None:
+        completed = subprocess.run(
+            [sys.executable, str(BRAIN_PY), "version"],
+            cwd=self.home,
+            env=self.env,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(completed.stdout.strip(), "Mneme 0.1.0")
+        self.assertFalse(self.instance.exists())
+
     # -- criação ---------------------------------------------------------------
 
     def test_cria_instancia_instala_runtime_e_commita(self) -> None:
