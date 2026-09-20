@@ -448,10 +448,10 @@ def cmd_setup(args) -> int:
         plan.instance_remote = args.instance_remote
     if args.drive_folder_id:
         plan.drive_folder_id = args.drive_folder_id
-    if args.mem0_host is not None:
-        plan.mem0_host = "" if args.no_mem0 else args.mem0_host
-    elif args.no_mem0:
+    if args.no_mem0:
         plan.mem0_host = ""
+    elif args.mem0_host is not None:
+        plan.mem0_host = args.mem0_host
     if args.mem0_user:
         plan.mem0_user = args.mem0_user
     if args.mem0_key_env:
@@ -494,7 +494,12 @@ def cmd_setup(args) -> int:
             print(f"  commit: {commit['commit']}")
         print()
         print("próximos passos:")
-        print(f"  defina {plan.mem0_key_env} no ambiente (chave do Mem0)" if plan.mem0_host else "  Mem0 desativado nesta instância")
+        if plan.mem0_host is None:
+            print(f"  confira o host do Mem0 e {plan.mem0_key_env} em {result['instance_root']}/mneme.yaml")
+        elif plan.mem0_host:
+            print(f"  defina {plan.mem0_key_env} no ambiente (chave do Mem0)")
+        else:
+            print("  Mem0 desativado nesta instância")
         if plan.drive_folder_id:
             print(f"  brain assets sync --remote gdrive:   # pasta {plan.drive_folder_id}")
         print(f"  brain status   # com MNEME_ROOT={result['instance_root']}")

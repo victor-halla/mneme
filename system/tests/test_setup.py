@@ -45,7 +45,6 @@ class SetupTest(unittest.TestCase):
             instance_root=str(self.instance),
             hermes_profile=str(self.profile),
             package_root=str(self.package_root),
-            mem0_host="http://127.0.0.1:8888",
         )
         for key, value in overrides.items():
             setattr(base, key, value)
@@ -150,7 +149,8 @@ class SetupTest(unittest.TestCase):
         self.assertTrue(result["ok"], result)
         self.assertEqual(result["mode"], "adotada")
         self.assertEqual((self.instance / "knowledge" / "nota.md").read_text(encoding="utf-8"), "dado que já existia no remoto")
-        self.assertEqual(self.config()["providers"]["mem0"]["host"], "http://127.0.0.1:8888")
+        # Adoção preserva a configuração trazida pelo clone: nada foi informado sobre o Mem0.
+        self.assertEqual(self.config()["providers"]["mem0"]["host"], "http://exemplo.invalido:1")
 
     def test_remote_inacessivel_falha_antes_de_criar_qualquer_coisa(self) -> None:
         ausente = str(self.home / "nao-existe.git")
@@ -200,6 +200,44 @@ class SetupTest(unittest.TestCase):
         self.assertEqual(result["mode"], "adotada")
         self.assertEqual(note.read_text(encoding="utf-8"), "conteúdo que não pode ser perdido")
         self.assertEqual(self.config()["providers"]["mem0"]["host"], "http://172.16.123.19:8888")
+
+    def test_adota_preserva_mem0_quando_nada_e_informado(self) -> None:
+        self.assertTrue(
+            self.apply(self.plan(install=False, mem0_host="http://172.16.123.19:8888", mem0_user="victor"))["ok"]
+        )
+
+        result = self.apply(self.plan(install=False))  # mem0_host None = não mexer
+
+        self.assertTrue(result["ok"], result)
+        self.assertEqual(result["changed"], [])
+        data = self.config()
+        self.assertEqual(data["providers"]["mem0"]["host"], "http://172.16.123.19:8888")
+        self.assertEqual(data["providers"]["mem0"]["user_id"], "victor")
+        self.assertTrue(data["providers"]["mem0"]["enabled"])
+
+    def test_interativo_sugere_os_valores_da_instancia_existente(self) -> None:
+        self.assertTrue(
+            self.apply(
+                self.plan(
+                    install=False,
+                    mem0_host="http://172.16.123.19:8888",
+                    mem0_user="victor",
+                    drive_folder_id="1HoB7M3S-HMcTEeUFApLbQHO2SrPKeh3b",
+                )
+            )["ok"]
+        )
+
+        answers = iter([""] * 7)
+        plan = setup_mod.interactive_plan(
+            self.plan(install=False),
+            home=self.home,
+            input_fn=lambda _prompt: next(answers),
+            output=lambda *_: None,
+        )
+
+        self.assertEqual(plan.mem0_host, "http://172.16.123.19:8888")
+        self.assertEqual(plan.mem0_user, "victor")
+        self.assertEqual(plan.drive_folder_id, "1HoB7M3S-HMcTEeUFApLbQHO2SrPKeh3b")
 
     def test_dry_run_nao_escreve_nada(self) -> None:
         result = self.apply(self.plan(install=False), dry_run=True)

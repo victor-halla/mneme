@@ -39,13 +39,18 @@ CONFIG_FILES = ("mneme.yaml", ".gitignore", "AGENTS.md")
 
 @dataclass
 class SetupPlan:
-    """Valores do assistente. Vazio significa "não configurar"."""
+    """Valores do assistente.
+
+    Campos de texto usam "" como "não mexer" na adoção. O host do Mem0 usa None
+    para "não mexer" e "" para "desativar", porque desativar é uma decisão
+    explícita e não pode ser confundida com ausência de informação.
+    """
 
     instance_root: str
     instance_remote: str = ""
     drive_folder_id: str = ""
-    mem0_host: str = ""
-    mem0_user: str = "default"
+    mem0_host: str | None = None
+    mem0_user: str = ""
     mem0_key_env: str = "MEM0_API_KEY"
     hermes_profile: str = ""
     package_root: str = ""
@@ -76,8 +81,20 @@ def default_plan(home: Path | None = None) -> SetupPlan:
         instance_root=os.environ.get("MNEME_ROOT") or str(base / "mneme"),
         hermes_profile=os.environ.get("HERMES_HOME") or default_profile(base),
         package_root=os.environ.get("MNEME_PACKAGE_ROOT") or str(base / ".local" / "share" / "mneme-package"),
-        mem0_host="http://127.0.0.1:8888",
     )
+
+
+def existing_config(instance_root: str | os.PathLike) -> dict[str, Any]:
+    """Configuração da instância que já existe, para servir de valor sugerido."""
+
+    path = Path(instance_root).expanduser() / "mneme.yaml"
+    if not path.is_file():
+        return {}
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError):
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
 def validate(plan: SetupPlan, home: Path | None = None) -> tuple[list[str], list[str]]:
@@ -179,17 +196,20 @@ def _patch_config(config_path: Path, plan: SetupPlan) -> list[str]:
     assets = providers.setdefault("assets", {})
 
     put(git_section, "remote", plan.instance_remote, "git.remote")
-    put(mem0, "host", plan.mem0_host, "providers.mem0.host")
     put(mem0, "user_id", plan.mem0_user, "providers.mem0.user_id")
     put(mem0, "api_key_env", plan.mem0_key_env, "providers.mem0.api_key_env")
     put(assets, "folder_id", plan.drive_folder_id, "providers.assets.folder_id")
 
-    if plan.mem0_host and mem0.get("enabled") is not True:
-        mem0["enabled"] = True
-        changed.append("providers.mem0.enabled")
-    if not plan.mem0_host and mem0.get("enabled") is True:
+    # None = não mexer; "" = desativar de propósito; qualquer host = informado.
+    if plan.mem0_host:
+        put(mem0, "host", plan.mem0_host, "providers.mem0.host")
+        if mem0.get("enabled") is not True:
+            mem0["enabled"] = True
+            changed.append("providers.mem0.enabled")
+    elif plan.mem0_host == "" and mem0.get("enabled") is True:
         mem0["enabled"] = False
         changed.append("providers.mem0.enabled=false")
+
     if plan.drive_folder_id and assets.get("enabled") is not True:
         assets["enabled"] = True
         changed.append("providers.assets.enabled")
@@ -378,29 +398,45 @@ def interactive_plan(
     if profiles:
         output(f"Perfis do Hermes encontrados: {', '.join(profiles)}")
 
+    # Valor sugerido: o que a instância já usa quando existe, senão o padrão do pacote.
+    current = existing_config(plan.instance_root)
+    providers = current.get("providers") or {}
+    mem0_current = providers.get("mem0") or {}
+    assets_current = providers.get("assets") or {}
+    git_current = current.get("git") or {}
+    remote_default = plan.instance_remote or str(git_current.get("remote") or "")
+    folder_default = plan.drive_folder_id or str(assets_current.get("folder_id") or "")
+    if plan.mem0_host is not None:
+        host_default = plan.mem0_host
+    elif mem0_current:
+        host_default = str(mem0_current.get("host") or "") if mem0_current.get("enabled") else ""
+    else:
+        host_default = "http://127.0.0.1:8888"
+    user_default = plan.mem0_user or str(mem0_current.get("user_id") or ("default" if not mem0_current else ""))
+
     root = _ask("1/6 raiz dos dados da instância", plan.instance_root, input_fn=input_fn, output=output)
     remote = _ask(
         "2/6 repositório Git da instância (privado; vazio = não mexer)",
-        plan.instance_remote,
+        remote_default,
         validate_value=lambda value: None if not value or GIT_URL_RE.match(value) else "use https://, ssh:// ou git@host:repo",
         input_fn=input_fn,
         output=output,
     )
     folder = _ask(
         "3/6 pasta raiz do Google Drive (ID; vazio = não mexer)",
-        plan.drive_folder_id,
+        folder_default,
         validate_value=lambda value: None if not value or DRIVE_ID_RE.match(value) else "ID do Drive parece inválido",
         input_fn=input_fn,
         output=output,
     )
     host = _ask(
         "4/6 host do Mem0 ('-' desativa)",
-        plan.mem0_host,
+        host_default,
         validate_value=lambda value: None if not value or MEM0_HOST_RE.match(value) else "use http:// ou https://",
         input_fn=input_fn,
         output=output,
     )
-    user = _ask("5/6 user_id do Mem0", plan.mem0_user, input_fn=input_fn, output=output)
+    user = _ask("5/6 user_id do Mem0", user_default, input_fn=input_fn, output=output)
     profile = _ask("6/6 perfil do Hermes que recebe a skill", plan.hermes_profile, input_fn=input_fn, output=output)
 
     return SetupPlan(
@@ -420,11 +456,18 @@ def interactive_plan(
 def describe(plan: SetupPlan) -> str:
     """Resumo antes de aplicar, para conferência humana."""
 
+    if plan.mem0_host is None:
+        mem0 = "(não mexer: mantém o que a instância já usa)"
+    elif plan.mem0_host:
+        mem0 = f"{plan.mem0_host} (user_id: {plan.mem0_user or '(não mexer)'})"
+    else:
+        mem0 = "(desativado)"
+
     lines = [
         f"raiz da instância     : {plan.instance_root}",
         f"remote Git da instância: {plan.instance_remote or '(sem remote)'}",
-        f"pasta do Drive        : {plan.drive_folder_id or '(desativada)'}",
-        f"Mem0                  : {plan.mem0_host or '(desativado)'} (user_id: {plan.mem0_user})",
+        f"pasta do Drive        : {plan.drive_folder_id or '(não mexer)'}",
+        f"Mem0                  : {mem0}",
         f"perfil do Hermes      : {plan.hermes_profile}",
         f"runtime               : {plan.package_root}",
         f"instalar runtime/skill: {'sim' if plan.install else 'não'}",
