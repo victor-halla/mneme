@@ -94,6 +94,15 @@ class SetupTest(unittest.TestCase):
         self.assertTrue(cli.is_file())
         self.assertTrue(os.access(cli, os.X_OK))
         self.assertTrue((self.package_root / "system" / "scripts" / "brain.py").is_file())
+        installed_version = subprocess.run(
+            [str(cli), "version"],
+            env=self.env,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        self.assertEqual(installed_version.returncode, 0, installed_version.stderr)
+        self.assertEqual(installed_version.stdout.strip(), "Mneme 0.1.0")
 
         log = subprocess.run(
             ["git", "log", "--pretty=format:%s"], cwd=self.instance, capture_output=True, text=True
@@ -141,6 +150,30 @@ class SetupTest(unittest.TestCase):
 
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertTrue((claude_home / "skills" / "brain-manager" / "SKILL.md").is_file())
+
+    def test_instalador_local_remove_arquivo_obsoleto_da_skill(self) -> None:
+        installer = SYSTEM_DIR / "scripts" / "install_skill.sh"
+        first = subprocess.run(
+            ["bash", str(installer)],
+            env=self.env,
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+        self.assertEqual(first.returncode, 0, first.stderr)
+        stale = self.profile / "skills" / "brain-manager" / "obsoleto.txt"
+        stale.write_text("versão anterior", encoding="utf-8")
+
+        second = subprocess.run(
+            ["bash", str(installer)],
+            env=self.env,
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+
+        self.assertEqual(second.returncode, 0, second.stderr)
+        self.assertFalse(stale.exists())
 
     def test_setup_instala_para_o_harness_claude(self) -> None:
         plan = self.plan(harness="claude", hermes_profile="")

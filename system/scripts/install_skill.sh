@@ -55,11 +55,21 @@ if [[ ! -f "${SKILL_SRC}/SKILL.md" ]]; then
   exit 1
 fi
 
-mkdir -p "${SKILL_TARGET}/scripts" "${SKILL_TARGET}/schemas" \
-  "${PACKAGE_TARGET}/system" "$HOME/.local/bin"
-cp -f "${SKILL_SRC}/SKILL.md" "${SKILL_TARGET}/SKILL.md"
-cp -f "${SKILL_SRC}"/schemas/*.json "${SKILL_TARGET}/schemas/" 2>/dev/null || true
-cp -f "${SKILL_SRC}"/scripts/* "${SKILL_TARGET}/scripts/" 2>/dev/null || true
+mkdir -p "$(dirname "${SKILL_TARGET}")" "${PACKAGE_TARGET}/system" "$HOME/.local/bin"
+skill_stage="$(mktemp -d "$(dirname "${SKILL_TARGET}")/.brain-manager.XXXXXXXX")"
+cp -a "${SKILL_SRC}/." "${skill_stage}/"
+skill_backup=""
+if [[ -e "${SKILL_TARGET}" ]]; then
+  skill_backup="$(dirname "${SKILL_TARGET}")/.brain-manager.backup.$$"
+  mv -- "${SKILL_TARGET}" "${skill_backup}"
+fi
+if ! mv -- "${skill_stage}" "${SKILL_TARGET}"; then
+  [[ -n "${skill_backup}" ]] && mv -- "${skill_backup}" "${SKILL_TARGET}"
+  echo "não foi possível promover a skill" >&2
+  exit 1
+fi
+[[ -n "${skill_backup}" ]] && rm -rf -- "${skill_backup}"
+cp -f "${PACKAGE_SRC}/VERSION" "${PACKAGE_SRC}/requirements.lock" "${PACKAGE_TARGET}/"
 for directory in core providers adapters scripts schemas templates; do
   rm -rf "${PACKAGE_TARGET}/system/${directory}"
   cp -a "${PACKAGE_SRC}/system/${directory}" "${PACKAGE_TARGET}/system/${directory}"

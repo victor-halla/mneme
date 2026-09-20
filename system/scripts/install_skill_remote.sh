@@ -37,7 +37,7 @@ trap 'rm -rf "${staging}"' EXIT
 mkdir -p "${staging}/skill" "${staging}/package" "$HOME/.local/bin"
 
 remote_tar skills/brain-manager | tar xzf - --strip-components=2 -C "${staging}/skill"
-remote_tar system/core system/providers system/adapters system/scripts system/schemas system/templates \
+remote_tar VERSION requirements.lock system/core system/providers system/adapters system/scripts system/schemas system/templates \
   | tar xzf - -C "${staging}/package"
 
 # Promoção: substitui as árvores gerenciadas em vez de mesclar versões.
