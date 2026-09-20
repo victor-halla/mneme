@@ -6,12 +6,21 @@
 <checkout do pacote>                     pacote em desenvolvimento
 ~/.local/share/mneme-package       runtime instalado
 ~/mneme                            instância de dados
-~/mneme/assets/drive               cache local ignorado pelo Git
+~/mneme/assets/drive               cache local do backend, ignorado pelo Git
+~/mneme/.mneme                     índice, estado e fila, ignorados pelo Git
 ```
+
+O que a instância versiona e o que ela deixa de fora:
+
+| Caminho | Vai para o Git? | Regra |
+| --- | --- | --- |
+| `entities/`, `projects/`, `areas/`, `knowledge/`, `resources/`, `timeline/`, `inbox/` | sim | — |
+| `assets/drive/` | não | `**/assets/drive/` |
+| `.mneme/` | não | `.mneme/` |
 
 ## Preparação
 
-Configuração assistida: `./system/scripts/setup.sh` resolve os valores que variam por máquina (raiz dos dados, remote Git da instância e pasta do Drive), instala runtime, skill e CLI e cria ou adota a instância. Sem terminal interativo ele não escreve nada, apenas mostra o comando para aplicar.
+Configuração assistida: `./system/scripts/setup.sh` resolve os valores que variam por máquina (raiz dos dados, remote Git da instância, backend dos binários no rclone e pasta do Drive), instala runtime, skill e CLI e cria ou adota a instância. Sem terminal interativo ele não escreve nada, apenas mostra o comando para aplicar.
 
 ```bash
 export PATH="$HOME/.local/bin:$PATH"

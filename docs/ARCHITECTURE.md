@@ -6,13 +6,15 @@
 <checkout do pacote>                     código reutilizável do pacote
 ~/.local/share/mneme-package       runtime instalado em cada host
 ~/mneme                            clone Git da instância de dados
-~/mneme/assets/drive               cache local do Drive, ignorado pelo Git
+~/mneme/assets/drive               cache local do backend, ignorado pelo Git
+~/mneme/.mneme                     índice, estado e fila, ignorados pelo Git
 ```
 
 O pacote nunca é a raiz implícita dos dados. A CLI resolve a instância por `--root`,
-`MNEME_ROOT` ou `~/mneme`, nesta ordem. Cada backend remoto possui seu próprio clone; GitHub
-sincroniza Markdown/YAML e Google Drive sincroniza os binários. Isso evita misturar releases do
-software com fatos pessoais e permite instalar a mesma versão do pacote em vários agentes.
+`MNEME_ROOT` ou `~/mneme`, nesta ordem. Cada fonte tem seu próprio caminho: o repositório Git da
+instância carrega Markdown e YAML, e o backend remoto, via rclone, carrega os binários grandes. Isso
+evita misturar release de software com fato pessoal e permite instalar a mesma versão do pacote em
+vários agentes.
 
 ## Visão geral
 
@@ -31,7 +33,7 @@ Hermes (perfil dev)  /  OpenClaw  /  Claude Code  /  Codex  /  Cursor
   (CANÔNICO)            (DERIVADO)              (DERIVADO)
         |
         v
-      GitHub (fase seguinte)
+      GitHub (repositório privado da instância; push só com autorização)
 
   Recursos grandes -> AssetProvider (rclone) -> backend remoto (Drive, S3, WebDAV, local)
 ```
@@ -42,7 +44,7 @@ Hermes (perfil dev)  /  OpenClaw  /  Claude Code  /  Codex  /  Cursor
 | --- | --- | --- | --- |
 | Mneme (Git/Markdown) | `~/mneme` por instalação | fatos, entidades, projetos, decisões, timeline, conhecimento, metadados | **Sim, é a única canônica** |
 | Pacote Mneme | checkout de desenvolvimento ou `~/.local/share/mneme-package` | core, CLI, providers, skill e testes | não contém a instância canônica |
-| Mem0 | `http://<host-do-mem0>:8888` | recuperação semântica rápida de memórias condensadas | não (derivado) |
+| Mem0 | cloud (`https://api.mem0.ai`) ou servidor OSS, por instalação | recuperação semântica rápida de memórias condensadas | não (derivado) |
 | Codebase Memory MCP | binário no servidor de dev | símbolos, chamadas, arquitetura, impacto, ADRs técnicos | não (derivado) |
 | AssetProvider | `system/providers/assets.py` | binários grandes em qualquer backend do rclone; cache local em `assets/drive` | não (só metadados no Git) |
 | Hermes | `~/.hermes` | runtime/harness que opera tudo | **nunca** |
@@ -85,6 +87,14 @@ Adapters (`system/adapters`): `HermesAdapter` (detecta home/perfil/skills/hooks/
 9. **Procedência explícita no contexto**: cada seção compilada carrega `[mneme]`, `[mem0]`,
    `[timeline]` ou `[code-intelligence]`.
 10. **Projeto é a unidade de contexto**: `project.md`, `decisions.md`, `tasks.md`, `.brain.yaml`.
+11. **Mem0 é conveniência, não dependência**: dois protocolos (cloud e OSS) e `enabled: false` que
+    desliga rede e fila sem afetar o resto.
+12. **Binário grande sai do Git**: o rclone transporta, o backend é a fonte e `assets/drive` é cache
+    descartável; nenhum backend específico é privilegiado no código.
+13. **Instalação não sobrescreve**: o assistente (`brain setup`) adota instância existente, altera só
+    as chaves informadas e nunca faz push.
+
+As decisões datadas, com contexto e alternativas descartadas, estão em `docs/DECISIONS.md`.
 
 ## Segurança
 
@@ -126,7 +136,18 @@ Riscos residuais aceitos e documentados:
 
 ## Preparação multi-harness
 
-O core não conhece harness. Para adicionar OpenClaw, Claude Code, Codex, Cursor ou um cliente
-MCP genérico, basta um adapter em `system/adapters/` ou um servidor MCP que exponha a CLI
-(`brain ...`). A persistência distribuída (sessões vinculadas a escopos, Fase 22) é declarada
-em `.brain.yaml` (`sessions:`), usando **IDs estáveis**, nunca nomes visuais de sessão.
+O core não conhece harness. Para adicionar Claude Code, Codex, Cursor, OpenClaw ou um cliente MCP
+genérico, basta um adapter em `system/adapters/` ou um servidor MCP que exponha a CLI (`brain ...`).
+
+O que já funciona entre harnesses:
+
+- a skill é um `SKILL.md` no padrão aberto Agent Skills, então a mesma pasta serve Hermes e Claude
+  Code: `install_skill.sh --harness claude` escreve em `~/.claude/skills/brain-manager`, e
+  `--base-dir <dir>` cobre qualquer outro destino;
+- o contrato de instruções da instância é `AGENTS.md`, que o Codex lê direto e o Claude Code alcança
+  por um `CLAUDE.md` apontando para ele;
+- a CLI roda em qualquer máquina com `python3` e `PyYAML`, e respeita `MNEME_ROOT` e
+  `MNEME_PACKAGE_ROOT`.
+
+A persistência distribuída (sessões vinculadas a escopos, Fase 22) é declarada em `.brain.yaml`
+(`sessions:`), usando **IDs estáveis**, nunca nomes visuais de sessão.

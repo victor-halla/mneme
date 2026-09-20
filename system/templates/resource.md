@@ -8,7 +8,7 @@ relations: []
 created: 2026-09-19
 updated: 2026-09-19
 sensitivity: private
-provider: gdrive
+provider: rclone
 file_id: null
 mime_type: application/pdf
 size: null
@@ -19,7 +19,7 @@ sha256: null
 
 ## Metadados
 
-- provider: gdrive | local
+- provider: rclone | local
 - file_id:
 - mime_type:
 - size:
@@ -29,5 +29,6 @@ sha256: null
 
 por que este arquivo importa, quem precisa dele e com que frequência
 
-O binário NUNCA vai para o Git: só estes metadados e a referência do provider
-(`AssetProvider` em `system/providers/assets.py`).
+O binário NUNCA vai para o Git: só estes metadados e a referência no backend. O caminho no backend é o
+que o `rclone` usa para buscar o arquivo, e é ele que `brain assets sync` traz para `assets/drive/`
+(`system/providers/assets.py`).

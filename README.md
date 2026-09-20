@@ -16,9 +16,9 @@ skills e instaladores                resources, timeline e configuração
                                            |
                               +------------+-------------+
                               v                          v
-                  Repositório Git                  Google Drive
+                  Repositório Git                  Backend remoto (rclone)
                   Markdown/YAML                    assets/drive/ local
-                                                   (ignorado pelo Git)
+                  (versionado)                     (ignorado pelo Git)
 ```
 
 Mem0 é memória semântica derivada. Codebase Memory MCP é inteligência estrutural de código derivada.
@@ -110,6 +110,30 @@ cd ~/mneme && git add -A && git commit -m "chore: configuração inicial da inst
 ```
 
 A migração copia apenas dados canônicos, nunca move ou apaga a origem, recusa colisões e bloqueia padrões de segredo.
+
+## O que é versionado e o que não é
+
+Dentro da instância, só conhecimento entra no Git. O resto tem lugar certo e fica fora do histórico:
+
+| Caminho | O que é | Vai para o Git? | Regra de ignore |
+| --- | --- | --- | --- |
+| `entities/`, `projects/`, `areas/`, `knowledge/`, `resources/`, `timeline/`, `inbox/` | fatos, entidades, projetos, metadados e referências | sim | — |
+| `assets/drive/` | binários grandes, cache local do backend | não | `**/assets/drive/` |
+| `.mneme/` | índice FTS, estado e fila de pendências do Mem0: tudo reconstruível | não | `.mneme/` |
+| `mneme.yaml`, `.gitignore`, `AGENTS.md` | configuração da instância | sim | — |
+
+Fora da instância, porque não são dados dela:
+
+| Caminho | O que é |
+| --- | --- |
+| `~/.local/share/mneme-package` | runtime instalado, ou `MNEME_PACKAGE_ROOT` |
+| `<perfil>/skills/brain-manager` | skill do harness |
+| `~/.local/bin/brain` | CLI |
+| `~/.config/mneme/mneme.env` | segredos, modo 600, nunca versionado |
+
+Três travas impedem binário no histórico: o `.gitignore` da instância ignora `assets/drive/`, o
+comando de sincronização recusa qualquer `cache_dir` diferente disso e recusa caminho com symlink, e
+`brain validate` varre segredo antes de qualquer commit.
 
 ## Uso diário
 
@@ -216,8 +240,11 @@ Se você não usa backend remoto, deixe `enabled: false`: nada é tentado e o re
 
 - `AGENTS.md`: regras para desenvolver o pacote.
 - `docs/SPEC-PACKAGE-INSTANCE.md`: contrato da separação pacote/instância.
-- `docs/ARCHITECTURE.md`: arquitetura e decisões.
+- `docs/ARCHITECTURE.md`: arquitetura, camadas e endurecimento.
+- `docs/DECISIONS.md`: decisões de arquitetura, datadas.
 - `docs/OPERATIONS.md`: operação e recuperação.
+- `docs/HANDOFF.md`: estado atual do pacote e pendências.
+- `CHANGELOG.md`: o que mudou em cada versão.
 - `examples/mneme.example.yaml`: configuração de exemplo da instância.
 
 ## Licença

@@ -76,8 +76,8 @@ A instância, fora daqui:
   areas/            responsabilidades contínuas
   timeline/         YYYY/MM/YYYY-MM-DD.md (eventos do mundo/projeto, não histórico técnico)
   knowledge/        notes/ topics/
-  resources/        metadados de arquivos grandes (binário fica no provider de assets)
-  assets/drive/     cache local, ignorado pelo Git
+  resources/        metadados de arquivos grandes (o binário fica no backend remoto)
+  assets/drive/     cache local do backend (rclone), ignorado pelo Git
   .mneme/           índices e estado derivado, ignorados pelo Git
 ```
 
@@ -85,7 +85,7 @@ Git history = histórico técnico. Timeline = acontecimentos. Não misture os do
 
 ## Comandos
 
-Use a CLI (na raiz do checkout):
+Use a CLI (na raiz do checkout, ou `brain` depois de instalar):
 
 ```bash
 python3 system/scripts/brain.py status
@@ -94,6 +94,8 @@ python3 system/scripts/brain.py context project-exemplo
 python3 system/scripts/brain.py remember "decidimos X" --type decision
 python3 system/scripts/brain.py validate
 python3 system/scripts/brain.py code impact <projeto> <simbolo>
+python3 system/scripts/brain.py assets check
+./system/scripts/setup.sh              # instala runtime, skill e CLI, e cria ou adota a instância
 ```
 
 Sempre que uma pergunta envolver estrutura de código, o caminho é o provider de code
@@ -101,7 +103,9 @@ intelligence (`brain code ...`), nunca grep manual nem indexação de código no
 
 ## Contribuição
 
-Ao alterar `skills/brain-manager/`, reinstale na máquina onde o agente roda com
-`system/scripts/install_skill_remote.sh` (confere checksum). Mudou o core (`system/core`,
-`system/providers`)? Rode a suíte: `./system/scripts/run_tests.sh`. Antes de abrir mudança,
-confirme que nenhum dado de instância entrou em arquivo versionado.
+Ao alterar `skills/brain-manager/`, reinstale com `./system/scripts/install_skill.sh <base>` (o perfil
+do Hermes por padrão, `--harness claude` para o Claude Code, `--base-dir` para qualquer destino).
+`install_skill_remote.sh` continua válido para instalar a partir de uma máquina de desenvolvimento, via
+SSH, conferindo o checksum do `SKILL.md`. Mudou o core (`system/core`, `system/providers`)? Rode a
+suíte: `./system/scripts/run_tests.sh`. Antes de abrir mudança, confirme que nenhum dado de instância,
+caminho privado ou identificador pessoal entrou em arquivo versionado, testes incluídos.

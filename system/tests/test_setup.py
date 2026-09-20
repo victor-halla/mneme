@@ -90,25 +90,25 @@ class SetupTest(unittest.TestCase):
     def test_aplica_drive_e_mem0_sem_remote(self) -> None:
         result = self.apply(
             self.plan(
-                drive_folder_id="1HoB7M3S-HMcTEeUFApLbQHO2SrPKeh3b",
-                mem0_host="http://172.16.123.19:8888",
-                mem0_user="victor",
+                drive_folder_id="pasta-drive-de-exemplo",
+                mem0_host="http://mem0.exemplo.invalid:8888",
+                mem0_user="usuario-teste",
             )
         )
 
         self.assertTrue(result["ok"], result)
         data = self.config()
-        self.assertEqual(data["providers"]["assets"]["folder_id"], "1HoB7M3S-HMcTEeUFApLbQHO2SrPKeh3b")
+        self.assertEqual(data["providers"]["assets"]["folder_id"], "pasta-drive-de-exemplo")
         self.assertTrue(data["providers"]["assets"]["enabled"])
-        self.assertEqual(data["providers"]["mem0"]["host"], "http://172.16.123.19:8888")
-        self.assertEqual(data["providers"]["mem0"]["user_id"], "victor")
+        self.assertEqual(data["providers"]["mem0"]["host"], "http://mem0.exemplo.invalid:8888")
+        self.assertEqual(data["providers"]["mem0"]["user_id"], "usuario-teste")
         self.assertEqual(data["providers"]["mem0"]["api_key_env"], "MEM0_API_KEY")
 
     def test_mem0_self_hosted_grava_protocolo_correto(self) -> None:
-        self.assertTrue(self.apply(self.plan(install=False, mem0_host="http://172.16.123.19:8888"))["ok"])
+        self.assertTrue(self.apply(self.plan(install=False, mem0_host="http://mem0.exemplo.invalid:8888"))["ok"])
 
         data = self.config()["providers"]["mem0"]
-        self.assertEqual(data["host"], "http://172.16.123.19:8888")
+        self.assertEqual(data["host"], "http://mem0.exemplo.invalid:8888")
         self.assertEqual(data["api"], "self-hosted")
 
     def test_instalacao_da_skill_para_claude_code(self) -> None:
@@ -224,16 +224,16 @@ class SetupTest(unittest.TestCase):
         note = self.instance / "knowledge" / "notes" / "existente.md"
         note.write_text("conteúdo que não pode ser perdido", encoding="utf-8")
 
-        result = self.apply(self.plan(install=False, mem0_host="http://172.16.123.19:8888"))
+        result = self.apply(self.plan(install=False, mem0_host="http://mem0.exemplo.invalid:8888"))
 
         self.assertTrue(result["ok"], result)
         self.assertEqual(result["mode"], "adotada")
         self.assertEqual(note.read_text(encoding="utf-8"), "conteúdo que não pode ser perdido")
-        self.assertEqual(self.config()["providers"]["mem0"]["host"], "http://172.16.123.19:8888")
+        self.assertEqual(self.config()["providers"]["mem0"]["host"], "http://mem0.exemplo.invalid:8888")
 
     def test_adota_preserva_mem0_quando_nada_e_informado(self) -> None:
         self.assertTrue(
-            self.apply(self.plan(install=False, mem0_host="http://172.16.123.19:8888", mem0_user="victor"))["ok"]
+            self.apply(self.plan(install=False, mem0_host="http://mem0.exemplo.invalid:8888", mem0_user="usuario-teste"))["ok"]
         )
 
         result = self.apply(self.plan(install=False))  # mem0_host None = não mexer
@@ -241,8 +241,8 @@ class SetupTest(unittest.TestCase):
         self.assertTrue(result["ok"], result)
         self.assertEqual(result["changed"], [])
         data = self.config()
-        self.assertEqual(data["providers"]["mem0"]["host"], "http://172.16.123.19:8888")
-        self.assertEqual(data["providers"]["mem0"]["user_id"], "victor")
+        self.assertEqual(data["providers"]["mem0"]["host"], "http://mem0.exemplo.invalid:8888")
+        self.assertEqual(data["providers"]["mem0"]["user_id"], "usuario-teste")
         self.assertTrue(data["providers"]["mem0"]["enabled"])
 
     def test_interativo_sugere_os_valores_da_instancia_existente(self) -> None:
@@ -250,9 +250,9 @@ class SetupTest(unittest.TestCase):
             self.apply(
                 self.plan(
                     install=False,
-                    mem0_host="http://172.16.123.19:8888",
-                    mem0_user="victor",
-                    drive_folder_id="1HoB7M3S-HMcTEeUFApLbQHO2SrPKeh3b",
+                    mem0_host="http://mem0.exemplo.invalid:8888",
+                    mem0_user="usuario-teste",
+                    drive_folder_id="pasta-drive-de-exemplo",
                 )
             )["ok"]
         )
@@ -265,9 +265,9 @@ class SetupTest(unittest.TestCase):
             output=lambda *_: None,
         )
 
-        self.assertEqual(plan.mem0_host, "http://172.16.123.19:8888")
-        self.assertEqual(plan.mem0_user, "victor")
-        self.assertEqual(plan.drive_folder_id, "1HoB7M3S-HMcTEeUFApLbQHO2SrPKeh3b")
+        self.assertEqual(plan.mem0_host, "http://mem0.exemplo.invalid:8888")
+        self.assertEqual(plan.mem0_user, "usuario-teste")
+        self.assertEqual(plan.drive_folder_id, "pasta-drive-de-exemplo")
 
     def test_backend_de_assets_vai_para_a_configuracao(self) -> None:
         result = self.apply(
@@ -297,7 +297,7 @@ class SetupTest(unittest.TestCase):
         cases = (
             {"instance_remote": "/caminho/local/sem-url"},
             {"drive_folder_id": "curto"},
-            {"mem0_host": "172.16.123.19:8888"},
+            {"mem0_host": "mem0.exemplo.invalid:8888"},
         )
         for case in cases:
             with self.subTest(case=case):

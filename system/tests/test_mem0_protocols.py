@@ -43,7 +43,7 @@ class Mem0ProtocolTest(unittest.TestCase):
         self.assertEqual(DEFAULT_PLATFORM_HOST, "https://api.mem0.ai")
         self.assertEqual(resolve_protocol(DEFAULT_PLATFORM_HOST), "platform")
         self.assertEqual(resolve_protocol("https://api.mem0.ai"), "platform")
-        self.assertEqual(resolve_protocol("http://172.16.123.19:8888"), "self-hosted")
+        self.assertEqual(resolve_protocol("http://mem0.exemplo.invalid:8888"), "self-hosted")
         self.assertEqual(resolve_protocol("http://127.0.0.1:8888"), "self-hosted")
 
     def test_host_parecido_com_o_da_plataforma_nao_vira_cloud(self) -> None:

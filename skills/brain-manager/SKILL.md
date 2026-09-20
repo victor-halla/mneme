@@ -73,8 +73,10 @@ Para edição manual (refinar um project.md, por exemplo), depois de editar rode
 
 - **Mem0 (semântico)**: use as tools `mem0_search` / `mem0_add` do próprio Hermes para
   memória de conversa. Para o Mneme gravar memória derivada, `brain remember` já sincroniza.
-  Mem0 self-hosted: `http://<host-do-mem0>:8888`, `user_id=<usuario>`; a chave está em
-  `MEM0_API_KEY` (ambiente), nunca no Git nem no chat.
+  O provider fala dois protocolos, escolhidos por `providers.mem0.api` ou inferidos pelo host: cloud
+  (`https://api.mem0.ai`, `/v3/memories/add/` e `/v3/memories/search/`, `Authorization: Token`) e
+  self-hosted (`/memories` e `/search`, `X-API-Key`). A chave vem de `MEM0_API_KEY` no ambiente, nunca
+  do Git nem do chat; com `enabled: false` o Mneme funciona inteiro, sem rede.
 - **Codebase Memory**: `brain code list` mostra os repositórios indexados. Sempre resolva o
   nome do projeto indexado (ex.: `<repositório indexado>` → `<projeto-indexado>`). Se um repositório
   não estiver indexado, `brain code index <caminho>`. Use `brain code impact` para blast
