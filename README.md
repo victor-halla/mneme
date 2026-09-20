@@ -25,13 +25,28 @@ Mem0 é memória semântica derivada. Codebase Memory MCP é inteligência estru
 
 ## Instalação
 
-No checkout do pacote:
+O pacote é instalado a partir de um checkout Git:
 
 ```bash
-cd <caminho do checkout>
+git clone https://github.com/victor-halla/mneme.git ~/mneme-src
+cd ~/mneme-src
 python3 -c "import yaml" || pip3 install --user pyyaml
 ./system/scripts/run_tests.sh
 ./system/scripts/install_skill.sh
+```
+
+A primeira linha confere a dependência única do pacote, o `PyYAML`. A segunda é opcional e valida o pacote antes de instalar. A terceira instala o runtime, a skill e a CLI.
+
+Para instalar a skill em outro perfil do Hermes, informe o diretório do perfil:
+
+```bash
+./system/scripts/install_skill.sh ~/.hermes/profiles/default
+```
+
+Para atualizar, atualize o checkout e rode o instalador de novo; a promoção substitui as árvores gerenciadas em vez de mesclar versões:
+
+```bash
+git -C ~/mneme-src pull && ~/mneme-src/system/scripts/install_skill.sh
 ```
 
 Para instalar em outra máquina, que lê o pacote a partir de uma máquina de desenvolvimento por SSH:
@@ -60,6 +75,12 @@ brain instance init \
   --drive-folder-id <drive-folder-id>
 
 brain instance migrate --source <caminho legado> --root ~/mneme
+```
+
+`instance init` cria a árvore, o repositório Git e a configuração, mas não commita `mneme.yaml`, `.gitignore` e `AGENTS.md`. O primeiro commit é seu:
+
+```bash
+cd ~/mneme && git add -A && git commit -m "chore: configuração inicial da instância"
 ```
 
 A migração copia apenas dados canônicos, nunca move ou apaga a origem, recusa colisões e bloqueia padrões de segredo.
