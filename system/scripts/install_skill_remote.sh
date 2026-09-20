@@ -7,7 +7,7 @@
 set -euo pipefail
 
 SSH_HOST="${MNEME_SSH:-dev-server}"
-REMOTE_PACKAGE="${MNEME_PACKAGE_SOURCE:-<checkout do pacote>}"
+REMOTE_PACKAGE="${MNEME_PACKAGE_SOURCE:?defina MNEME_PACKAGE_SOURCE com o caminho do pacote na maquina de desenvolvimento}"
 TARGET_HOME="${HERMES_HOME:-$HOME/.hermes/profiles/dev}"
 SKILL_TARGET="${TARGET_HOME}/skills/brain-manager"
 PACKAGE_TARGET="${MNEME_PACKAGE_ROOT:-$HOME/.local/share/mneme-package}"

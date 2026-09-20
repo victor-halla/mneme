@@ -117,7 +117,7 @@ def _instance_config(remote: str, drive_folder_id: str) -> dict[str, Any]:
         "providers": {
             "mem0": {
                 "enabled": True,
-                "host": "http://<host-do-mem0>:8888",
+                "host": "http://127.0.0.1:8888",  # ajuste para o seu mem0 self-hosted
                 "user_id": "default",
                 "agent_id": "mneme",
                 "api_key_env": "MEM0_API_KEY",
