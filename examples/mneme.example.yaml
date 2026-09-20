@@ -1,0 +1,64 @@
+# Exemplo de configuração de instância Mneme.
+# Copie para <raiz da instância>/mneme.yaml (padrão: ~/mneme/mneme.yaml) e ajuste os valores.
+# Nada de segredo aqui: a chave do Mem0 vem de MEM0_API_KEY no ambiente ou de
+# ~/.config/mneme/mneme.env (modo 600).
+
+mneme:
+  version: 1
+  index: .mneme/index.db
+  state: .mneme/state.json
+  pending_sync: .mneme/mem0_pending.jsonl
+
+git:
+  identity:
+    name: <nome do agente>
+    email: <email do agente>
+    scope: local
+  # Push é proibido por padrão: libere apenas por decisão explícita.
+  allow_push: false
+  remote: ""
+
+memory_policy:
+  always:
+    - decisions
+    - commitments
+    - project_changes
+    - relationships
+    - important_preferences
+    - important_events
+  usually:
+    - ideas
+    - learnings
+    - meetings
+    - useful_context
+  ignore:
+    - casual_conversation
+    - repeated_information
+    - temporary_requests
+
+context:
+  budget_tokens: 4000
+  timeline_days: 14
+  max_documents: 40
+
+providers:
+  mem0:
+    enabled: false
+    host: http://<host-do-mem0>:8888
+    user_id: <usuario>
+    agent_id: mneme
+    api_key_env: MEM0_API_KEY
+    timeout: 20
+    top_k: 8
+  codebase_memory:
+    enabled: false
+    command: codebase-memory-mcp
+    transport: cli
+    timeout: 120
+  assets:
+    enabled: false
+    provider: gdrive
+    folder_id: <drive-folder-id>
+    cache_dir: assets/drive
+
+sessions: []

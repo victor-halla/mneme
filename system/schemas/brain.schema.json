@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Mneme .brain.yaml",
+  "description": "Declaração de providers e escopo de contexto de um projeto.",
+  "type": "object",
+  "required": ["id", "type"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^project-[a-z0-9-]+$"},
+    "type": {"const": "project"},
+    "memory": {
+      "type": "object",
+      "properties": {
+        "canonical": {"const": "git"},
+        "mem0": {"type": "boolean"}
+      }
+    },
+    "search": {"type": "object", "properties": {"markdown": {"type": "boolean"}}},
+    "code": {
+      "type": "object",
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "provider": {"const": "codebase-memory"},
+        "repositories": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "path"],
+            "properties": {
+              "id": {"type": "string"},
+              "path": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "assets": {
+      "type": "object",
+      "properties": {
+        "provider": {"type": "string", "enum": ["gdrive", "local"]},
+        "enabled": {"type": "boolean"}
+      }
+    },
+    "context": {"type": "object", "properties": {"include": {"type": "array", "items": {"type": "string"}}}},
+    "sessions": {
+      "type": "array",
+      "description": "Vínculo de sessões externas a este escopo (IDs estáveis, nunca nomes visuais).",
+      "items": {
+        "type": "object",
+        "required": ["provider", "session_id", "target"],
+        "properties": {
+          "provider": {"type": "string", "examples": ["telegram", "slack", "discord", "hermes", "openclaw"]},
+          "session_type": {"type": "string", "examples": ["topic", "thread", "channel", "dm"]},
+          "session_id": {"type": "string"},
+          "target": {"type": "string"}
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}

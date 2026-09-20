@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Mneme Entity",
+  "description": "Entidade canônica do Mneme (person, organization, place, thing, animal).",
+  "type": "object",
+  "required": ["id", "type", "name", "created", "updated", "sensitivity"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+      "description": "ID estável no formato tipo-slug. Nunca use caminho de arquivo como identidade."
+    },
+    "type": {
+      "type": "string",
+      "enum": ["person", "organization", "place", "thing", "animal", "project", "area", "note", "topic", "resource", "daily"]
+    },
+    "name": {"type": "string", "minLength": 1},
+    "aliases": {"type": "array", "items": {"type": "string"}},
+    "tags": {"type": "array", "items": {"type": "string"}},
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "target"],
+        "properties": {
+          "type": {"type": "string", "examples": ["involved_in", "works_with", "belongs_to", "owns"]},
+          "target": {"type": "string", "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"}
+        },
+        "additionalProperties": true
+      }
+    },
+    "created": {"type": "string", "format": "date"},
+    "updated": {"type": "string", "format": "date"},
+    "sensitivity": {
+      "type": "string",
+      "enum": ["public", "internal", "private", "confidential", "secret"],
+      "description": "secret significa NUNCA versionar."
+    }
+  },
+  "additionalProperties": true
+}

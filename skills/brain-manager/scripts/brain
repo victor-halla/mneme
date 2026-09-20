@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Shim da skill brain-manager.
+#
+# O pacote e os dados são independentes. MNEME_PACKAGE_ROOT aponta para o
+# runtime instalado; MNEME_ROOT aponta para o repositório de dados da instância.
+set -euo pipefail
+
+PACKAGE_ROOT="${MNEME_PACKAGE_ROOT:-$HOME/.local/share/mneme-package}"
+DATA_ROOT="${MNEME_ROOT:-$HOME/mneme}"
+exec python3 "${PACKAGE_ROOT}/system/scripts/brain.py" --root "${DATA_ROOT}" "$@"

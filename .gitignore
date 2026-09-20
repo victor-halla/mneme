@@ -1,0 +1,42 @@
+# Estado gerado (reconstruível) — nunca versionar
+system/generated/
+__pycache__/
+*.py[cod]
+
+# Segredos — nunca versionar
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*
+secrets*
+tokens*
+*_token.txt
+id_rsa*
+id_ed25519*
+known_hosts
+
+# Caches / sessões / logs
+cache/
+logs/
+sessions/
+*.db-wal
+*.db-shm
+*.lock
+
+# Ruído
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Índices do provider de código (derivados, fora do controle de versão)
+.codebase-memory/
+
+# Instância de dados criada por engano dentro do pacote — nunca versionar
+.mneme/
+**/assets/drive/
