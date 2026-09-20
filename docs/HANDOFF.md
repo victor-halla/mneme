@@ -20,6 +20,8 @@ de instância, sem caminho privado e sem identificador pessoal.
 - `brain version` e `brain setup --check`; versão canônica em `VERSION`, dependência fixada em
   `requirements.lock`.
 - Instalação da skill para Hermes e para Claude Code.
+- Destino declarado para dado pessoal não versionável (`privacy.sensitive_file`), documentado no
+  `AGENTS.md` da instância, na skill, nas decisões e na operação, com o arquivo por host em modo 600.
 - Suíte cobrindo raiz, instância, migração, mem0, assets, setup e endurecimento.
 
 ## Pendente, com dono

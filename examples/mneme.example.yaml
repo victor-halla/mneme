@@ -41,6 +41,13 @@ context:
   timeline_days: 14
   max_documents: 40
 
+privacy:
+  # Dado pessoal que não pode ser versionado: identificador (CPF, RG, CNH, CNS, PIS, título de
+  # eleitor, passaporte), contato, endereço, saúde e documento. O arquivo fica fora da instância,
+  # fora de ~/.hermes, com modo 600, e cada host mantém o seu. O cérebro guarda o fato e a
+  # referência; o valor nunca entra no Markdown versionado.
+  sensitive_file: ~/.config/mneme/identificadores.md   # ex.: /home/usuario/.config/mneme/identificadores.md
+
 providers:
   mem0:
     enabled: true

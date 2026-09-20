@@ -82,7 +82,39 @@ arquivo é o contrato comum entre harnesses: Hermes, Claude Code, Codex e outros
 - `.mneme/` contém estado derivado e nunca é versionado.
 - `assets/drive/` é cache local do Google Drive e nunca é versionado (qualquer profundidade).
 - Conteúdo `secret`, credenciais e tokens nunca entram no Git.
+- Dado pessoal que não pode ser versionado tem destino próprio: veja
+  "Dados que não vão para o Git".
 - Não faça push sem autorização explícita do proprietário.
+
+## Dados que não vão para o Git
+
+Algumas categorias nunca entram no Git, nem em repositório privado. Elas ficam em um único arquivo
+local do host, com permissão restrita (arquivo modo 600 e diretório pai 700), fora da instância e
+fora de `~/.hermes`:
+
+| Categoria | Exemplos |
+| --- | --- |
+| identificador | CPF, RG, CNH, CNS, PIS, título de eleitor, registro de classe, passaporte |
+| contato | telefone, e-mail pessoal, perfil em rede social |
+| endereço | logradouro, número, complemento, CEP, ponto de referência |
+| saúde | condição, medicação, alergia, resultado de exame |
+| documento | número, órgão emissor, validade, imagem digitalizada |
+
+Regras:
+
+1. O arquivo é declarado em `privacy.sensitive_file` no `mneme.yaml`, por padrão
+   `~/.config/mneme/identificadores.md`. Ajuste o caminho se quiser; mantenha-o fora da instância,
+   para que ele nunca seja alcançado por `git add`.
+2. O cérebro guarda o **fato** e a **referência**, nunca o valor. Escreva que o dado existe e onde
+   está, com o ID da entidade; não transcreva número de documento, telefone, e-mail nem endereço
+   para Markdown versionado.
+3. O arquivo não viaja com o Git: cada host mantém o seu. O que se compartilha entre máquinas é o
+   fato e a referência, nunca o valor.
+4. `~/.hermes` é runtime do harness e **nunca** base canônica de conhecimento. Gravar em pasta
+   privada do harness também não é destino válido: o destino é o arquivo declarado em
+   `privacy.sensitive_file`.
+5. Ao receber um valor dessas categorias, grave o fato no cérebro e o valor no arquivo restrito,
+   criando o diretório com 700 e o arquivo com 600 quando ainda não existirem.
 
 ## Como ler e escrever
 
@@ -132,6 +164,12 @@ def _instance_config(remote: str, drive_folder_id: str) -> dict[str, Any]:
             "ignore": ["casual_conversation", "repeated_information", "temporary_requests"],
         },
         "context": {"budget_tokens": 4000, "timeline_days": 14, "max_documents": 40},
+        "privacy": {
+            # Dado pessoal que não pode ser versionado (identificador, contato, endereço,
+            # saúde, documento) fica neste arquivo local, fora do Git e fora da instância.
+            # Cada host mantém o seu; o valor nunca é copiado para o Markdown versionado.
+            "sensitive_file": "~/.config/mneme/identificadores.md",
+        },
         "providers": {
             "mem0": {
                 "enabled": True,

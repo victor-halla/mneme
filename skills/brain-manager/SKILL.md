@@ -33,6 +33,7 @@ brain status
 | "guarde isso", "salve no meu cérebro", "lembre disso" | `brain remember "<texto>"` |
 | "não precisa guardar", "isso é temporário" | não grave nada (política de memória) |
 | "o que sabemos sobre X?" | `brain search "X"` + `brain get <id>` (+ Mem0 pela memória do perfil) |
+| "salve que <entidade> tem/é/faz <fato>" | fato: `brain remember "<fato>" --entity <id>` criando ou atualizando a entidade |
 | "onde estamos no projeto X?" | `brain context project-x --query "status"` |
 | "o que aconteceu ontem/semana passada" | `brain context timeline` ou leia `timeline/YYYY/MM/` |
 | "organize o que conversamos hoje" | `brain remember` para os fatos + `brain organize` |
@@ -43,6 +44,12 @@ brain status
 
 Consulta obrigatória antes de criar: **procure antes** (`brain search`, `brain get`,
 `brain context`). Nunca crie duplicata: se existe, atualize (append com data).
+
+Fato sobre uma pessoa, organização, lugar, coisa ou animal: resolva primeiro a **entidade** por ID
+estável `tipo-slug` (ex.: `person-nome-sobrenome`, `thing-nome-do-objeto`), criando o arquivo em
+`entities/` quando ainda não existir, e grave o fato com `brain remember "<fato>" --entity <id>`.
+As `relations` do frontmatter apontam para IDs que já existem, nunca para texto solto nem para
+caminho de arquivo. Se o fato citar outra entidade, use o ID dela.
 
 ## Fluxo de escrita (nunca pule etapas)
 
@@ -64,6 +71,10 @@ Para edição manual (refinar um project.md, por exemplo), depois de editar rode
 1. `~/.hermes` é runtime do harness, **nunca** base canônica de conhecimento.
 2. Nunca versione segredos: `.env`, chaves, tokens, credenciais, caches de sessão.
    Sensibilidade `secret` = nunca commitar. Se o texto parecer credencial, **não grave**.
+   Dado que não vai ao Git (identificador, contato, endereço, saúde, documento) não é descartado e
+   não é gravado no repositório: vira **fato no cérebro + valor no arquivo restrito** indicado por
+   `privacy.sensitive_file` no `mneme.yaml`, fora da instância, fora de `~/.hermes` e com modo 600.
+   O cérebro guarda o fato e a referência; **nunca o valor**.
 3. Nunca `git add .`; nunca `git push` sem autorização explícita do proprietário.
 4. Não indexe código-fonte no FTS do Mneme: para código use `brain code ...`.
 5. Não reimplemente Mem0 (busca semântica) nem Codebase Memory (grafo de código).
@@ -71,6 +82,33 @@ Para edição manual (refinar um project.md, por exemplo), depois de editar rode
 7. Migração de `~/.hermes` só em `scan -> plan -> apply`, copiando (nunca apagando origem).
 8. Se um provider estiver fora, degrade com honestidade: o canônico continua valendo e a
    pendência fica registrada.
+
+## Dado pessoal que não vai ao Git
+
+Identificador (CPF, RG, CNH, CNS, PIS, título de eleitor, registro de classe, passaporte), contato,
+endereço, saúde e documento nunca entram no Markdown versionado, nem em repositório privado. O
+procedimento é sempre o mesmo: **fato no cérebro, valor no arquivo restrito**.
+
+```bash
+# 1. o valor vai para o arquivo local, fora da instância e fora de ~/.hermes
+sensitive="$(sed -n 's/^[[:space:]]*sensitive_file:[[:space:]]*//p' "$MNEME_ROOT/mneme.yaml")"
+sensitive="${sensitive/#\~/$HOME}"
+mkdir -p "$(dirname "$sensitive")" && chmod 700 "$(dirname "$sensitive")"
+printf '%s\n' "<id-da-entidade> | <categoria> | <valor>" >> "$sensitive"
+chmod 600 "$sensitive"
+
+# 2. o fato e a referência vão para o cérebro, sem o valor
+brain remember "<entidade> informou <categoria>; valor no arquivo restrito declarado em privacy.sensitive_file" \
+  --entity <id-da-entidade>
+```
+
+Regras de execução:
+
+- o valor nunca aparece no texto do `brain remember`, no commit, no Mem0 nem na resposta ao usuário;
+- o arquivo é por host: não é sincronizado pelo Git e não deve ser copiado entre máquinas;
+- `~/.hermes` é runtime do harness; gravar em pasta privada do harness **não** é destino válido;
+- se a categoria for `secret` (chave, token, senha), não grave nem no arquivo restrito: recuse e
+  informe onde a credencial deve ficar.
 
 ## Consultando Mem0 e o grafo de código
 
@@ -171,3 +209,9 @@ Se precisar automatizar, use cron não invasivo (`hermes cron add`) em vez de mo
     `docs/ARCHITECTURE.md` § Endurecimento; regressões em `system/tests/test_hardening.py`.
 19. Um clone do repositório de dados materializa arquivos conforme o umask local (o Git só guarda o
     bit executável). Em máquina compartilhada, clone com `umask 077`.
+20. Gravar dado pessoal em pasta privada do harness (`~/.hermes/...`) é destino errado: aquilo é
+    runtime, não é base de conhecimento e não segue a política de retenção nem o backup do cérebro. O
+    destino é o arquivo declarado em `privacy.sensitive_file`.
+21. O arquivo de dados sensíveis é por host e não viaja no Git. Antes de responder sobre um
+    identificador, verifique se ele existe **neste** host; se não existir, diga que o valor está no
+    outro host em vez de inventar ou deduzir o número.

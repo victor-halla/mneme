@@ -78,6 +78,52 @@ brain remember "guarde isso: o fornecedor X foi aprovado"     # comando explíci
 O comando devolve: classificação, arquivo(s), evento de timeline, commit e estado do Mem0.
 Se o Mem0 estiver fora, ele informa `pendente` — nada se perde.
 
+## Dados pessoais que não vão para o Git
+
+Identificador (CPF, RG, CNH, CNS, PIS, título de eleitor, registro de classe, passaporte), contato,
+endereço, dado de saúde e documento nunca entram no Markdown versionado, nem em repositório privado.
+
+O destino é o arquivo declarado em `privacy.sensitive_file` no `mneme.yaml`, por padrão
+`~/.config/mneme/identificadores.md`. Ele fica fora da instância, fora de `~/.hermes` e com permissão
+restrita (diretório 700, arquivo 600):
+
+```bash
+sensitive="$(sed -n 's/^[[:space:]]*sensitive_file:[[:space:]]*//p' "$MNEME_ROOT/mneme.yaml")"
+sensitive="${sensitive/#\~/$HOME}"
+mkdir -p "$(dirname "$sensitive")" && chmod 700 "$(dirname "$sensitive")"
+printf '%s\n' "<id-da-entidade> | <categoria> | <valor>" >> "$sensitive"
+chmod 600 "$sensitive"
+stat -c '%a %n' "$sensitive"
+```
+
+O valor vai só para esse arquivo. O cérebro recebe o fato e a referência, sem o valor:
+
+```bash
+brain remember "<entidade> informou <categoria>; valor no arquivo restrito" --entity <id-da-entidade>
+```
+
+Características do arranjo:
+
+- o arquivo é **por host**: não é sincronizado pelo Git e não deve ser copiado entre máquinas. Cada host
+  mantém o seu, e o que se compartilha é o fato e a referência;
+- `~/.hermes` é runtime do harness e nunca base de conhecimento; gravar em pasta privada do harness não
+  vale como destino;
+- credencial continua proibida em qualquer lugar do cérebro e também não vai para esse arquivo: `.env`
+  fora do repositório, modo 600, é o lugar dela;
+- o arquivo não entra em backup nem em índice do Mneme por acidente: mantenha-o fora da raiz da instância.
+
+### Se um identificador já foi versionado
+
+1. Remova o valor dos arquivos versionados e deixe o fato com a referência ao arquivo restrito.
+2. Rode `brain validate` e `brain reindex`; commite apenas os arquivos corrigidos.
+3. Trate o histórico com o proprietário: o valor continua nos commits anteriores, e um clone ou backup
+   carrega a cópia. Decida entre reescrever o histórico, com backup e coordenação, ou assumir o
+   repositório como exposto aos detentores do clone.
+4. Rotacione o que for rotacionável (senha, token, chave). Número de documento não rotaciona: depende de
+   decisão do proprietário e, em alguns casos, de registro em órgão externo.
+5. Registre o ocorrido na timeline da instância, descrevendo a categoria e o intervalo, nunca o valor.
+6. Rode a varredura antes do próximo push, além de `brain validate`.
+
 ## Consultando
 
 ```bash

@@ -177,6 +177,7 @@ Dentro da instância, só conhecimento entra no Git. O resto tem lugar certo e f
 | `assets/drive/` | binários grandes, cache local do backend | não | `**/assets/drive/` |
 | `.mneme/` | índice FTS, estado e fila de pendências do Mem0: tudo reconstruível | não | `.mneme/` |
 | `mneme.yaml`, `.gitignore`, `AGENTS.md` | configuração da instância | sim | — |
+| identificadores, contatos, endereços, saúde e documentos | dados pessoais que não podem ser versionados | não | declaração `privacy.sensitive_file`, fora da instância, por host |
 
 Fora da instância, porque não são dados dela:
 

@@ -37,7 +37,9 @@ Agente                  = um dos clientes que raciocina e executa sobre essas fo
 6. O SQLite FTS do Mneme indexa `.md`/`.yaml` do cérebro. **Não** indexe código-fonte.
 7. Sincronização principal: `Git/Markdown -> Mem0`.
 8. Nunca commite segredos (`.env`, chaves, tokens, credenciais, caches de sessão). Sensibilidade
-   `secret` significa **nunca commitar**.
+   `secret` significa **nunca commitar**. Dado pessoal que não é versionável (identificador, contato,
+   endereço, saúde, documento) também não entra aqui: o valor vive no arquivo local declarado em
+   `privacy.sensitive_file` da instância, fora do Git; o cérebro guarda o fato e a referência.
 9. Todo estado gerado fica em `.mneme/` dentro da instância (ignorado pelo Git; só dados reconstruíveis).
 10. Nunca `git add .`. Sempre arquivos explícitos. Nunca `git push` sem autorização.
 11. Migrações seguem `scan -> plan -> apply`, com backup e sem apagar originais.

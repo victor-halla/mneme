@@ -81,6 +81,35 @@ class TestInstanceInitialization(unittest.TestCase):
             )
             self.assertEqual(MnemeConfig(root=root).generated_dir, root / ".mneme")
 
+    def test_agents_da_instancia_define_destino_para_dado_pessoal(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mneme-instance-") as temp:
+            root = Path(temp) / "mneme"
+
+            self.assertTrue(initialize_instance(root)["ok"])
+            agents = (root / "AGENTS.md").read_text(encoding="utf-8")
+
+            self.assertIn("Dados que não vão para o Git", agents)
+            for categoria in ("identificador", "contato", "endereço", "saúde", "documento"):
+                self.assertIn(categoria, agents, categoria)
+            self.assertIn("modo 600", agents)
+            self.assertIn("~/.hermes", agents)
+            self.assertIn("nunca o valor", agents)
+            self.assertIn("permissão restrita", agents.lower())
+
+    def test_config_declara_arquivo_de_dados_sensiveis_fora_do_git(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mneme-instance-") as temp:
+            root = Path(temp) / "mneme"
+
+            self.assertTrue(initialize_instance(root)["ok"])
+            import yaml
+
+            config = yaml.safe_load((root / "mneme.yaml").read_text(encoding="utf-8"))
+            sensitive = config["privacy"]["sensitive_file"]
+
+            self.assertTrue(sensitive, "privacy.sensitive_file precisa ser declarado")
+            self.assertTrue(sensitive.startswith("~") or sensitive.startswith("/"))
+            self.assertFalse(sensitive.startswith("."), "arquivo sensível não pode ficar dentro da instância")
+
     def test_initialize_refuses_nonempty_destination_without_overwrite(self) -> None:
         with tempfile.TemporaryDirectory(prefix="mneme-instance-") as temp:
             root = Path(temp) / "mneme"

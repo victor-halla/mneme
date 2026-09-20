@@ -73,3 +73,14 @@ SHA-256 quando informado, cria um venv por release, testa o runtime em staging e
 checkout nem alterar o Python do sistema, e uma falha de download ou dependência não substitui a versão
 ativa. O checkout continua sendo o caminho de desenvolvimento. Descartados: `pip --user` como instalação
 principal e atualização por cópia incremental da skill, que deixava arquivos removidos para trás.
+
+## 2026-09-20 — Dado pessoal que não pode ser versionado tem destino fora do Git
+
+Identificador, contato, endereço, dado de saúde e documento não entram no Git, nem em repositório
+privado. O valor fica em um arquivo local por host, declarado em `privacy.sensitive_file` e com modo 600;
+o cérebro guarda o fato e a referência, nunca o valor. Razão: versão não é o único critério de exposição,
+e o repositório privado ainda é copiado, clonado e indexado; separar o valor do fato mantém o
+conhecimento útil sem transportar o dado. O arquivo é por host porque cada máquina tem seu próprio
+contexto de exposição e não há sincronização desse conteúdo. Descartados: guardar o valor em pasta
+privada do harness, que é runtime e não base de conhecimento; e criar seção nova no cérebro para o
+valor, que apenas renomearia o problema.

@@ -7,6 +7,10 @@ release; o que ainda não foi publicado fica em `Unreleased`.
 
 ### Adicionado
 
+- Destino declarado para dado pessoal que não pode ser versionado: `privacy.sensitive_file` no
+  `mneme.yaml`, com o `AGENTS.md` da instância explicando as categorias (identificador, contato,
+  endereço, saúde, documento), o modo 600 e o fato de o arquivo ser por host. O cérebro guarda o fato e
+  a referência; o valor nunca entra no Markdown versionado.
 - Bootstrap público `install.sh` para instalação por URL, com Python 3.11+, venv privado, versão ativa
   por symlink, checksum opcional, manifesto por release, limites de extração, `flock` e suporte a
   execução por pipe.
