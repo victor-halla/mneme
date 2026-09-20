@@ -70,6 +70,7 @@ if ! mv -- "${skill_stage}" "${SKILL_TARGET}"; then
 fi
 [[ -n "${skill_backup}" ]] && rm -rf -- "${skill_backup}"
 cp -f "${PACKAGE_SRC}/VERSION" "${PACKAGE_SRC}/requirements.lock" "${PACKAGE_TARGET}/"
+printf '%s\n' "${PACKAGE_TARGET}" > "${SKILL_TARGET}/scripts/.package-root"
 for directory in core providers adapters scripts schemas templates; do
   rm -rf "${PACKAGE_TARGET}/system/${directory}"
   cp -a "${PACKAGE_SRC}/system/${directory}" "${PACKAGE_TARGET}/system/${directory}"

@@ -7,7 +7,10 @@ description: "Use when remembering, organizing or auditing persistent knowledge 
 
 O Mneme separa **pacote** e **instância**:
 
-- o pacote reutilizável contém core, CLI e skill (instalado em `~/.local/share/mneme-package`);
+- o pacote reutilizável contém core, CLI e skill. O bootstrap instala em
+  `~/.local/share/mneme/releases/<versão>` com `current` apontando para a versão ativa; o instalador de
+  checkout usa `~/.local/share/mneme-package`. O shim desta skill resolve o runtime pelo
+  `MNEME_PACKAGE_ROOT`, pelo arquivo `.package-root` gravado ao lado dele ou pelos layouts padrão;
 - a instância de dados fica em **`~/mneme`** por padrão (`MNEME_ROOT` pode alterar);
 - no host Hermes, a instância esperada é `~/mneme`;
 - cada backend remoto possui seu próprio clone e compartilha dados pelo Git privado.

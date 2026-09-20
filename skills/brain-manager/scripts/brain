@@ -3,8 +3,46 @@
 #
 # O pacote e os dados são independentes. MNEME_PACKAGE_ROOT aponta para o
 # runtime instalado; MNEME_ROOT aponta para o repositório de dados da instância.
-set -euo pipefail
+#
+# Ordem de resolução do runtime:
+#   1. MNEME_PACKAGE_ROOT, quando definido;
+#   2. arquivo .package-root gravado ao lado deste shim pela instalação;
+#   3. ~/.local/share/mneme/current (layout do bootstrap);
+#   4. ~/.local/share/mneme-package (layout do checkout).
+#
+# Escrito em shell portável de propósito: harnesses e agentes chamam este
+# arquivo tanto pelo shebang quanto por `sh`, e ele não usa recursos de bash.
+set -eu
 
-PACKAGE_ROOT="${MNEME_PACKAGE_ROOT:-$HOME/.local/share/mneme-package}"
 DATA_ROOT="${MNEME_ROOT:-$HOME/mneme}"
-exec python3 "${PACKAGE_ROOT}/system/scripts/brain.py" --root "${DATA_ROOT}" "$@"
+PACKAGE_ROOT="${MNEME_PACKAGE_ROOT:-}"
+
+if [ -z "$PACKAGE_ROOT" ]; then
+  here="$(dirname "$0")"
+  marker="$here/.package-root"
+  if [ -f "$marker" ]; then
+    read -r PACKAGE_ROOT < "$marker"
+  fi
+fi
+
+if [ -z "$PACKAGE_ROOT" ]; then
+  install_root="${MNEME_INSTALL_ROOT:-$HOME/.local/share/mneme}"
+  for candidate in "$install_root/current" "$HOME/.local/share/mneme/current" "$HOME/.local/share/mneme-package"; do
+    if [ -f "$candidate/system/scripts/brain.py" ]; then
+      PACKAGE_ROOT="$candidate"
+      break
+    fi
+  done
+fi
+
+if [ -z "$PACKAGE_ROOT" ] || [ ! -f "$PACKAGE_ROOT/system/scripts/brain.py" ]; then
+  echo "erro: runtime do Mneme não encontrado. Defina MNEME_PACKAGE_ROOT ou rode o instalador." >&2
+  exit 1
+fi
+
+PYTHON="$PACKAGE_ROOT/.venv/bin/python"
+if [ ! -x "$PYTHON" ]; then
+  PYTHON="python3"
+fi
+
+exec "$PYTHON" "$PACKAGE_ROOT/system/scripts/brain.py" --root "$DATA_ROOT" "$@"

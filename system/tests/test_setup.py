@@ -175,6 +175,32 @@ class SetupTest(unittest.TestCase):
         self.assertEqual(second.returncode, 0, second.stderr)
         self.assertFalse(stale.exists())
 
+    def test_instalador_local_grava_o_runtime_para_o_shim_da_skill(self) -> None:
+        completed = subprocess.run(
+            ["bash", str(SYSTEM_DIR / "scripts" / "install_skill.sh")],
+            env=self.env,
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        marker = self.profile / "skills" / "brain-manager" / "scripts" / ".package-root"
+        self.assertTrue(marker.is_file())
+        self.assertEqual(marker.read_text(encoding="utf-8").strip(), str(self.package_root))
+
+        shim = self.profile / "skills" / "brain-manager" / "scripts" / "brain"
+        clean_env = {k: v for k, v in self.env.items() if k != "MNEME_PACKAGE_ROOT"}
+        result = subprocess.run(
+            [str(shim), "version"],
+            env=clean_env,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+        self.assertEqual(result.stdout.strip(), "Mneme 0.1.0")
+
     def test_setup_instala_para_o_harness_claude(self) -> None:
         plan = self.plan(harness="claude", hermes_profile="")
 

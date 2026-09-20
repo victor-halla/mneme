@@ -45,6 +45,7 @@ rm -rf "${SKILL_TARGET}" "${PACKAGE_TARGET}"
 mkdir -p "${SKILL_TARGET}" "${PACKAGE_TARGET}"
 cp -a "${staging}/skill/." "${SKILL_TARGET}/"
 cp -a "${staging}/package/." "${PACKAGE_TARGET}/"
+printf '%s\n' "${PACKAGE_TARGET}" > "${SKILL_TARGET}/scripts/.package-root"
 
 chmod +x "${SKILL_TARGET}"/scripts/* "${PACKAGE_TARGET}"/system/scripts/* 2>/dev/null || true
 cp -f "${SKILL_TARGET}/scripts/brain" "$HOME/.local/bin/brain"
