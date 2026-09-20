@@ -152,8 +152,12 @@ def _instance_config(remote: str, drive_folder_id: str) -> dict[str, Any]:
                 "timeout": 120,
             },
             "assets": {
-                "enabled": True,
-                "provider": "gdrive",
+                # Binários grandes: o backend remoto é a fonte e o cache local é
+                # descartável. Qualquer remote do rclone serve; o Google Drive é o
+                # padrão e usa `folder_id`. Sem backend configurado, fica desligado.
+                "enabled": bool(drive_folder_id),
+                "provider": "rclone",
+                "remote": "gdrive:",
                 "folder_id": drive_folder_id,
                 "cache_dir": "assets/drive",
             },

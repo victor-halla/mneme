@@ -14,7 +14,7 @@ O Mneme separa **pacote** e **instância**:
 
 A instância é a **fonte canônica** de fatos, entidades, projetos, decisões, timeline e metadados
 de recursos. Mem0 é memória semântica **derivada**. Codebase Memory MCP é inteligência
-estrutural de código **derivada**. Binários do Drive ficam no cache local `assets/drive/`,
+estrutural de código **derivada**. Binários do backend remoto (rclone) ficam no cache local `assets/drive/`,
 ignorado pelo Git.
 
 CLI, após a instalação:
@@ -143,10 +143,11 @@ Se precisar automatizar, use cron não invasivo (`hermes cron add`) em vez de mo
 9. A instância contém dados pessoais e é sincronizada com repositório privado. Push só com
    autorização explícita do proprietário; nunca torne o repositório público nem adicione colaborador
    externo sem essa autorização.
-10. `brain assets sync` exige `cache_dir: assets/drive` ignorado pelo Git; o cache é cópia local do
+10. `brain assets check` antes de sincronizar, e `brain assets sync` exige `cache_dir: assets/drive` ignorado pelo Git; o cache é cópia local do
     Drive e não entra no histórico.
-11. O Mem0 self-hosted **exige** `filters` (user_id/agent_id/run_id) no `POST /search`; sem isso a
-   API devolve 400. O provider já injeta `user_id` — não chame a API cru sem filters.
+11. O Mem0 tem dois protocolos: cloud (`https://api.mem0.ai`, `/v3/memories/add/` e `/v3/memories/search/`,
+   `Authorization: Token`) e self-hosted (`/memories` e `/search`, `X-API-Key`). Em ambos a busca exige as
+   entidades dentro de `filters`; sem isso a API devolve 400. O provider injeta `user_id` — não chame a API cru.
 12. `trace_path` do Codebase Memory exige qualified name. Use `brain code impact <projeto> <alvo>`
    com nome curto: o provider resolve (`GitMemoryStore` → a classe; `remember` → o método) e, se o
    MCP responder `ambiguous`, ele segue a primeira sugestão.

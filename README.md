@@ -68,7 +68,7 @@ O instalador separa:
 
 ## Configuração assistida
 
-O pacote traz um assistente que resolve os três valores que mudam de máquina para máquina: a raiz dos dados, o repositório Git da instância e a pasta raiz do Google Drive.
+O pacote traz um assistente que resolve os valores que mudam de máquina para máquina: a raiz dos dados, o repositório Git da instância, o backend dos binários no rclone (com a pasta do Drive, quando for Drive), o Mem0 e o perfil que recebe a skill.
 
 ```bash
 ./system/scripts/setup.sh        # pergunta um valor por vez, com validação
@@ -80,6 +80,7 @@ Sem terminal interativo ele não escreve nada: mostra os valores que seriam apli
 ./system/scripts/setup.sh --non-interactive \
   --instance-root ~/mneme \
   --instance-remote git@github.com:USUARIO/mneme-hermes.git \
+  --drive-remote "gdrive:" \
   --drive-folder-id <id-da-pasta-no-drive> \
   --mem0-host https://api.mem0.ai \
   --hermes-profile ~/.hermes/profiles/dev
@@ -177,9 +178,39 @@ Uma instância pode versionar Markdown `confidential` em repositório privado, p
 
 O pacote mantém `git.allow_push: false` por padrão. Nenhum push é automático.
 
-## Google Drive
+## Binários e backend remoto (rclone)
 
-Os binários ficam em `~/mneme/assets/drive/`, caminho ignorado pelo Git. O Drive é a fonte desses arquivos; `resources/` guarda metadados e links versionáveis. O provider precisa de autenticação OAuth do Google na máquina que executar a sincronização.
+Binário grande nunca entra no Git: a instância guarda metadados e referências em `resources/`, e o arquivo vive no backend remoto. O transporte é o **rclone**, então vale qualquer backend que ele suporte: Google Drive, S3, WebDAV, OneDrive, Backblaze, um diretório local.
+
+```yaml
+providers:
+  assets:
+    enabled: true
+    provider: rclone
+    remote: gdrive:          # qualquer remote do rclone; ex.: s3:meu-balde
+    folder_id: <id-da-pasta> # só para remote do tipo drive
+    cache_dir: assets/drive
+```
+
+```bash
+brain assets check                   # rclone instalado? remote configurado? tipo? pasta?
+brain assets sync --dry-run          # mostra o que seria copiado, sem escrever
+brain assets sync                    # copia para assets/drive
+brain assets sync --remote s3:balde  # troca o backend só nesta execução
+```
+
+O que o comando garante:
+
+- sem rclone instalado, ou com remote não configurado, falha com erro limpo e instrução, sem traceback e sem copiar nada;
+- remote do tipo `drive` sem `folder_id` é recusado, porque copiaria a raiz inteira da conta;
+- `folder_id` em backend que não é Drive é ignorado, com aviso;
+- o cache precisa ser `assets/drive`, sem symlink e ignorado pelo Git;
+- `--dry-run` lista os arquivos que seriam copiados e não escreve nada;
+- a cópia só adiciona e atualiza, nunca apaga, nem no cache nem no backend.
+
+Para Google Drive, o rclone precisa de OAuth na máquina que sincroniza (`rclone config`; se o token expirar, `rclone config reconnect gdrive:`). O `client_id` compartilhado do rclone está sendo retirado ao longo de 2026, então criar o seu próprio é o caminho durável (https://rclone.org/drive/#making-your-own-client-id).
+
+Se você não usa backend remoto, deixe `enabled: false`: nada é tentado e o resto do Mneme funciona igual.
 
 ## Documentação
 

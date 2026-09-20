@@ -22,7 +22,7 @@ Mneme / Git / Markdown  = fonte canônica de fatos, entidades, projetos, timelin
 Mem0                    = memória semântica DERIVADA, condensada para recuperação rápida.
 Codebase Memory MCP     = inteligência estrutural de código (símbolos, chamadas, impacto,
                           arquitetura). Nunca é fonte canônica de decisão humana.
-Google Drive            = armazenamento de binários grandes (só metadados no Git).
+Backend remoto (rclone) = armazenamento de binários grandes; só metadados no Git.
 Agente                  = um dos clientes que raciocina e executa sobre essas fontes.
 ```
 

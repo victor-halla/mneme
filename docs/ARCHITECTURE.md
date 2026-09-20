@@ -33,7 +33,7 @@ Hermes (perfil dev)  /  OpenClaw  /  Claude Code  /  Codex  /  Cursor
         v
       GitHub (fase seguinte)
 
-  Recursos grandes -> AssetProvider -> Google Drive (fase seguinte)
+  Recursos grandes -> AssetProvider (rclone) -> backend remoto (Drive, S3, WebDAV, local)
 ```
 
 ## Camadas e responsabilidades
@@ -44,7 +44,7 @@ Hermes (perfil dev)  /  OpenClaw  /  Claude Code  /  Codex  /  Cursor
 | Pacote Mneme | checkout de desenvolvimento ou `~/.local/share/mneme-package` | core, CLI, providers, skill e testes | não contém a instância canônica |
 | Mem0 | `http://<host-do-mem0>:8888` | recuperação semântica rápida de memórias condensadas | não (derivado) |
 | Codebase Memory MCP | binário no servidor de dev | símbolos, chamadas, arquitetura, impacto, ADRs técnicos | não (derivado) |
-| AssetProvider | `system/providers/assets.py` | binários grandes (Google Drive, fase seguinte) | não (só metadados no Git) |
+| AssetProvider | `system/providers/assets.py` | binários grandes em qualquer backend do rclone; cache local em `assets/drive` | não (só metadados no Git) |
 | Hermes | `~/.hermes` | runtime/harness que opera tudo | **nunca** |
 
 ## Core (`system/core`)

@@ -19,13 +19,22 @@ if str(SYSTEM_DIR) not in sys.path:
 
 from core import actions, classify as classify_mod, instance as instance_mod, migrate_hermes, models, routing, validate as validate_mod  # noqa: E402
 from core.config import MnemeConfig  # noqa: E402
-from providers.assets import sync_drive_cache  # noqa: E402
+from providers.assets import check_assets, sync_assets  # noqa: E402
 
 LEVEL_MARKS = {True: "✓", False: "✗"}
 
 
 def _mark(ok: bool) -> str:
     return LEVEL_MARKS[bool(ok)]
+
+
+def _human_size(size: int | float) -> str:
+    value = float(size or 0)
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if value < 1024:
+            return f"{value:.0f} {unit}" if unit == "B" else f"{value:.1f} {unit}"
+        value /= 1024
+    return f"{value:.1f} PB"
 
 
 def _emit(payload, as_json: bool) -> None:
@@ -45,6 +54,8 @@ def _emit(payload, as_json: bool) -> None:
 
 def cmd_status(brain: actions.Brain, args) -> int:
     report = brain.status()
+    assets_state = check_assets(brain.config)
+    report["assets"] = assets_state
     if args.json:
         _emit(report, True)
         return 0
@@ -74,6 +85,12 @@ def cmd_status(brain: actions.Brain, args) -> int:
         "Code Intelligence",
         f"{_mark(code.get('ok'))} Codebase Memory {code.get('status')} — {code.get('repositories', 0)} repositório(s) indexado(s)"
         + (f" ({code.get('reason')})" if code.get("reason") else ""),
+        "",
+        "Assets",
+        f"{_mark(assets_state['ok'])} {assets_state['remote']} (tipo {assets_state['remote_type']})"
+        + (f" — {assets_state['folder_id']}" if assets_state.get("folder_id") else "")
+        + (f" — {'; '.join(assets_state['problems'])}" if assets_state["problems"] else ""),
+        *( [f"! {warning}"] for warning in assets_state.get("warnings", []) ),
         "",
         "Hermes",
         (
@@ -393,19 +410,63 @@ def _print_impact(result: dict) -> None:
 
 
 def cmd_assets(brain: actions.Brain, args) -> int:
-    result = sync_drive_cache(
-        brain.config,
-        remote=args.remote,
-        executable=args.rclone,
-        dry_run=bool(args.dry_run),
-    )
+    common = {"remote": args.remote or "", "executable": args.rclone}
+    try:
+        if args.assets_action == "check":
+            result = check_assets(brain.config, **common)
+        else:
+            result = sync_assets(brain.config, dry_run=bool(args.dry_run), **common)
+    except Exception as exc:  # nunca traceback no lugar de erro limpo
+        print(f"erro: falha inesperada em assets: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
+
     if args.json:
         _emit(result, True)
-    elif result.get("ok"):
-        print(f"cache do Drive atualizado: {result['cache']}")
-    else:
-        print(f"erro: {result.get('error', 'falha no rclone')}", file=sys.stderr)
-    return 0 if result.get("ok") else 1
+        return 0 if result.get("ok") else 1
+
+    if args.assets_action == "check":
+        rclone = result.get("rclone") or {}
+        print("Assets")
+        if rclone.get("available"):
+            print(f"{_mark(True)} rclone: {rclone.get('version') or 'versão desconhecida'}")
+            remotes = rclone.get("remotes") or {}
+            listed = ", ".join(f"{name} ({kind})" for name, kind in sorted(remotes.items())) or "nenhum"
+            print(f"  remotes configurados: {listed}")
+        else:
+            print(f"{_mark(False)} rclone não encontrado: {rclone.get('executable', args.rclone)}")
+        print(f"{_mark(result['ok'])} remote: {result['remote']} (tipo {result['remote_type']})")
+        if result.get("folder_id"):
+            print(f"  pasta do Drive: {result['folder_id']}")
+        print(f"  cache: {result['cache']}")
+        for problem in result.get("problems", []):
+            print(f"  ✗ {problem}")
+        for warning in result.get("warnings", []):
+            print(f"  ! {warning}")
+        if result.get("hint"):
+            print(f"  → {result['hint']}")
+        return 0 if result.get("ok") else 1
+
+    if result.get("ok"):
+        if result.get("dry_run"):
+            total = result.get("would_copy_count", 0)
+            print(
+                f"{_mark(True)} simulação: {total} arquivo(s) seriam copiados de "
+                f"{result['remote']} para {result['cache']}"
+            )
+            for item in result.get("would_copy", [])[:10]:
+                print(f"  - {item}")
+        else:
+            print(
+                f"{_mark(True)} cache atualizado: {result.get('files_local', 0)} arquivo(s), "
+                f"{_human_size(result.get('bytes_local', 0))} em {result['cache']}"
+            )
+        for warning in result.get("warnings", []):
+            print(f"  ! {warning}")
+        return 0
+    print(f"erro: {result.get('error', 'falha no rclone')}", file=sys.stderr)
+    if result.get("hint"):
+        print(f"  → {result['hint']}", file=sys.stderr)
+    return 1
 
 
 # -- instância -----------------------------------------------------------------
@@ -455,6 +516,10 @@ def cmd_setup(args) -> int:
         plan.instance_remote = args.instance_remote
     if args.drive_folder_id:
         plan.drive_folder_id = args.drive_folder_id
+    if args.drive_remote:
+        plan.drive_remote = args.drive_remote
+    if args.rclone:
+        plan.rclone = args.rclone
     if args.no_mem0:
         plan.mem0_host = ""
     elif args.mem0_host is not None:
@@ -511,8 +576,9 @@ def cmd_setup(args) -> int:
             print(f"  defina {plan.mem0_key_env} no ambiente (chave do Mem0)")
         else:
             print("  Mem0 desativado nesta instância")
-        if plan.drive_folder_id:
-            print(f"  brain assets sync --remote gdrive:   # pasta {plan.drive_folder_id}")
+        if plan.drive_folder_id or plan.drive_remote:
+            print("  brain assets check      # confere rclone, remote e cache")
+            print("  brain assets sync --dry-run   # mostra o que seria copiado")
         print(f"  brain status   # com MNEME_ROOT={result['instance_root']}")
     else:
         print("configuração não aplicada", file=sys.stderr)
@@ -599,6 +665,8 @@ def build_parser() -> argparse.ArgumentParser:
     setup.add_argument("--instance-root", help="raiz dos dados da instância (default: MNEME_ROOT ou ~/mneme)")
     setup.add_argument("--instance-remote", help="URL do repositório Git privado da instância")
     setup.add_argument("--drive-folder-id", help="ID da pasta raiz no Google Drive")
+    setup.add_argument("--drive-remote", help="remote do rclone para os binários (default: gdrive:)")
+    setup.add_argument("--rclone", default="rclone", help="executável rclone usado no diagnóstico")
     setup.add_argument("--mem0-host", help="host do Mem0 (default: http://127.0.0.1:8888)")
     setup.add_argument("--no-mem0", action="store_true", help="desativa o Mem0 nesta instância")
     setup.add_argument("--mem0-user", help="user_id do Mem0 (default: default)")
@@ -613,9 +681,9 @@ def build_parser() -> argparse.ArgumentParser:
     setup.add_argument("--no-commit", action="store_true", help="não commita a configuração da instância")
     setup.set_defaults(func=cmd_setup)
 
-    assets = sub.add_parser("assets", parents=[COMMON], help="cache local de arquivos do Google Drive")
-    assets.add_argument("assets_action", choices=["sync"])
-    assets.add_argument("--remote", default="gdrive:", help="remote configurado no rclone")
+    assets = sub.add_parser("assets", parents=[COMMON], help="cache local de binários do backend (rclone)")
+    assets.add_argument("assets_action", choices=["sync", "check"])
+    assets.add_argument("--remote", help="remote do rclone (default: providers.assets.remote ou gdrive:)")
     assets.add_argument("--rclone", default="rclone", help="executável rclone")
     assets.set_defaults(func=cmd_assets)
 

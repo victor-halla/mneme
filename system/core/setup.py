@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import os
 import re
-import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -29,9 +28,11 @@ import yaml
 SYSTEM_DIR = Path(__file__).resolve().parents[1]
 PACKAGE_SRC = SYSTEM_DIR.parent
 INSTALLER = SYSTEM_DIR / "scripts" / "install_skill.sh"
+DEFAULT_REMOTE = "gdrive:"
 
 GIT_URL_RE = re.compile(r"^(?:https?://|ssh://|git://|git@[A-Za-z0-9._-]+:|file://|/)")
 DRIVE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{10,}$")
+REMOTE_RE = re.compile(r"^(?:[A-Za-z0-9._@-]+:.*|[:/].*)$")
 MEM0_HOST_RE = re.compile(r"^https?://[^\s/]+")
 
 CONFIG_FILES = ("mneme.yaml", ".gitignore", "AGENTS.md")
@@ -49,6 +50,8 @@ class SetupPlan:
     instance_root: str
     instance_remote: str = ""
     drive_folder_id: str = ""
+    drive_remote: str = ""
+    rclone: str = "rclone"
     mem0_host: str | None = None
     mem0_user: str = ""
     mem0_key_env: str = "MEM0_API_KEY"
@@ -123,6 +126,9 @@ def validate(plan: SetupPlan, home: Path | None = None) -> tuple[list[str], list
 
     if plan.drive_folder_id and not DRIVE_ID_RE.match(plan.drive_folder_id):
         errors.append(f"ID de pasta do Drive inválido: {plan.drive_folder_id}")
+    if plan.drive_remote and not REMOTE_RE.match(plan.drive_remote):
+        errors.append(
+            f"remote do rclone inválido: {plan.drive_remote} (use remote:caminho, ex.: gdrive: ou s3:balde)")
 
     if plan.mem0_host and not MEM0_HOST_RE.match(plan.mem0_host):
         errors.append(f"host do Mem0 inválido: {plan.mem0_host} (use http:// ou https://)")
@@ -135,21 +141,30 @@ def validate(plan: SetupPlan, home: Path | None = None) -> tuple[list[str], list
     if plan.package_root and Path(plan.package_root).expanduser().is_relative_to(base) is False:
         warnings.append(f"runtime fora do home: {plan.package_root}")
 
-    if plan.drive_folder_id:
-        if not shutil.which("rclone"):
-            warnings.append("rclone ausente: o cache do Drive não vai sincronizar")
-        elif "gdrive" not in _rclone_remotes():
-            warnings.append("nenhum remote 'gdrive' configurado no rclone: rode `rclone config`")
+    if plan.drive_folder_id or plan.drive_remote:
+        from providers.assets import rclone_info, remote_name
+
+        remote = (plan.drive_remote or DEFAULT_REMOTE).strip()
+        info = rclone_info(plan.rclone)
+        name = remote_name(remote)
+        if not info["available"]:
+            warnings.append(
+                "rclone ausente: o cache do backend não vai sincronizar "
+                "(instale o rclone e rode `rclone config`)"
+            )
+        elif name and name not in info["remotes"]:
+            warnings.append(f"remote do rclone não configurado: {remote} (rode `rclone config`)")
 
     return errors, warnings
 
 
 def _rclone_remotes() -> str:
-    try:
-        result = subprocess.run(["rclone", "listremotes"], capture_output=True, text=True, timeout=10)
-    except (OSError, subprocess.SubprocessError):
-        return ""
-    return result.stdout
+    """Remotes configurados no rclone, para diagnóstico. Vazio se o binário faltar."""
+
+    from providers.assets import rclone_info
+
+    info = rclone_info("rclone")
+    return " ".join(info["remotes"])
 
 
 def _git_config_value(key: str) -> str:
@@ -234,6 +249,12 @@ def _patch_config(config_path: Path, plan: SetupPlan) -> list[str]:
     if plan.drive_folder_id and assets.get("enabled") is not True:
         assets["enabled"] = True
         changed.append("providers.assets.enabled")
+    put(assets, "remote", plan.drive_remote, "providers.assets.remote")
+    if plan.drive_remote:
+        put(assets, "provider", "rclone", "providers.assets.provider")
+        if assets.get("enabled") is not True:
+            assets["enabled"] = True
+            changed.append("providers.assets.enabled")
 
     if changed:
         config_path.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
@@ -436,36 +457,55 @@ def interactive_plan(
 
         host_default = DEFAULT_PLATFORM_HOST
     user_default = plan.mem0_user or str(mem0_current.get("user_id") or ("default" if not mem0_current else ""))
+    rclone_default = plan.drive_remote or str(assets_current.get("remote") or "") or DEFAULT_REMOTE
+
+    from providers.assets import rclone_info
+
+    rclone_state = rclone_info(plan.rclone)
+    if not rclone_state["available"]:
+        output("rclone não encontrado nesta máquina: sem ele o cache do backend não sincroniza.")
+    else:
+        listed = ", ".join(f"{name} ({kind})" for name, kind in sorted(rclone_state["remotes"].items())) or "nenhum"
+        output(f"rclone: {rclone_state['version'] or 'versão desconhecida'} — remotes configurados: {listed}")
 
     if not remote_default:
         suggestion = f"git@github.com:{_git_config_value('github.user') or 'SEU-USUARIO'}/mneme-hermes.git"
         output(f"Se o repositório privado dos dados ainda não existe, o nome sugerido é {suggestion}")
 
-    root = _ask("1/6 raiz dos dados da instância", plan.instance_root, input_fn=input_fn, output=output)
+    root = _ask("1/7 raiz dos dados da instância", plan.instance_root, input_fn=input_fn, output=output)
     remote = _ask(
-        "2/6 repositório Git da instância (privado; vazio = não mexer)",
+        "2/7 repositório Git da instância (privado; vazio = não mexer)",
         remote_default,
         validate_value=lambda value: None if not value or GIT_URL_RE.match(value) else "use https://, ssh:// ou git@host:repo",
         input_fn=input_fn,
         output=output,
     )
+    drive_remote = _ask(
+        "3/7 backend dos binários no rclone (qualquer remote serve; vazio = não mexer)",
+        rclone_default,
+        validate_value=lambda value: None
+        if not value or REMOTE_RE.match(value)
+        else "use remote:caminho, por exemplo gdrive: ou s3:meu-balde",
+        input_fn=input_fn,
+        output=output,
+    )
     folder = _ask(
-        "3/6 pasta raiz do Google Drive (ID; vazio = não mexer)",
+        "4/7 pasta raiz no Google Drive (ID; vazio = não mexer)",
         folder_default,
         validate_value=lambda value: None if not value or DRIVE_ID_RE.match(value) else "ID do Drive parece inválido",
         input_fn=input_fn,
         output=output,
     )
     host = _ask(
-        "4/6 host do Mem0 (cloud é o padrão; self-hosted seria http://127.0.0.1:8888; '-' desativa)",
+        "5/7 host do Mem0 (cloud é o padrão; self-hosted seria http://127.0.0.1:8888; '-' desativa)",
         host_default,
         validate_value=lambda value: None if not value or MEM0_HOST_RE.match(value) else "use http:// ou https://",
         input_fn=input_fn,
         output=output,
     )
-    user = _ask("5/6 user_id do Mem0", user_default, input_fn=input_fn, output=output)
+    user = _ask("6/7 user_id do Mem0", user_default, input_fn=input_fn, output=output)
     profile = _ask(
-        "6/6 base da skill (perfil do Hermes; para Claude Code use ~/.claude)",
+        "7/7 base da skill (perfil do Hermes; para Claude Code use ~/.claude)",
         plan.skills_base or plan.hermes_profile,
         input_fn=input_fn,
         output=output,
@@ -475,6 +515,8 @@ def interactive_plan(
         instance_root=root,
         instance_remote=remote,
         drive_folder_id=folder,
+        drive_remote=drive_remote,
+        rclone=plan.rclone,
         mem0_host=host,
         mem0_user=user,
         mem0_key_env=plan.mem0_key_env,
@@ -500,7 +542,8 @@ def describe(plan: SetupPlan) -> str:
     lines = [
         f"raiz da instância     : {plan.instance_root}",
         f"remote Git da instância: {plan.instance_remote or '(sem remote)'}",
-        f"pasta do Drive        : {plan.drive_folder_id or '(não mexer)'}",
+        f"backend de assets     : {plan.drive_remote or '(não mexer)'}"
+        + (f" — pasta {plan.drive_folder_id}" if plan.drive_folder_id else ""),
         f"Mem0                  : {mem0}",
         f"skill ({plan.harness})          : {plan.skills_base or plan.hermes_profile}",
         f"runtime               : {plan.package_root}",

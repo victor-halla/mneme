@@ -58,9 +58,10 @@ providers:
     transport: cli
     timeout: 120
   assets:
-    enabled: false
-    provider: gdrive
-    folder_id: <drive-folder-id>
+    enabled: true
+    provider: rclone
+    remote: "gdrive:"               # qualquer remote do rclone; ex.: "s3:meu-balde"
+    folder_id: <drive-folder-id>    # só para remote do tipo drive
     cache_dir: assets/drive
 
 sessions: []

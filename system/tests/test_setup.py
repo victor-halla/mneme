@@ -257,7 +257,7 @@ class SetupTest(unittest.TestCase):
             )["ok"]
         )
 
-        answers = iter([""] * 7)
+        answers = iter([""] * 9)
         plan = setup_mod.interactive_plan(
             self.plan(install=False),
             home=self.home,
@@ -268,6 +268,23 @@ class SetupTest(unittest.TestCase):
         self.assertEqual(plan.mem0_host, "http://172.16.123.19:8888")
         self.assertEqual(plan.mem0_user, "victor")
         self.assertEqual(plan.drive_folder_id, "1HoB7M3S-HMcTEeUFApLbQHO2SrPKeh3b")
+
+    def test_backend_de_assets_vai_para_a_configuracao(self) -> None:
+        result = self.apply(
+            self.plan(install=False, drive_remote="s3:meu-balde", drive_folder_id="")
+        )
+
+        self.assertTrue(result["ok"], result)
+        assets = self.config()["providers"]["assets"]
+        self.assertEqual(assets["remote"], "s3:meu-balde")
+        self.assertEqual(assets["provider"], "rclone")
+        self.assertTrue(assets["enabled"])
+
+    def test_remote_de_assets_invalido_e_recusado(self) -> None:
+        result = self.apply(self.plan(install=False, drive_remote="sem dois pontos"))
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any("remote do rclone inválido" in erro for erro in result["errors"]), result)
 
     def test_dry_run_nao_escreve_nada(self) -> None:
         result = self.apply(self.plan(install=False), dry_run=True)
@@ -342,7 +359,7 @@ class SetupTest(unittest.TestCase):
     # -- modo interativo -------------------------------------------------------
 
     def test_interativo_aceita_padroes_e_desativa_mem0(self) -> None:
-        answers = iter(["", "git@github.com:exemplo/dados.git", "", "-", "", ""])
+        answers = iter(["", "git@github.com:exemplo/dados.git", "", "", "-", "", "", ""])
         lines: list[str] = []
         plan = setup_mod.interactive_plan(
             self.plan(),
@@ -353,12 +370,15 @@ class SetupTest(unittest.TestCase):
 
         self.assertEqual(plan.instance_root, str(self.instance))
         self.assertEqual(plan.instance_remote, "git@github.com:exemplo/dados.git")
+        self.assertEqual(plan.drive_remote, "gdrive:")
         self.assertEqual(plan.mem0_host, "")
         self.assertEqual(plan.hermes_profile, str(self.profile))
         self.assertTrue(lines)
 
     def test_interativo_repergunta_valor_invalido(self) -> None:
-        answers = iter(["", "isso não é url", "https://github.com/exemplo/dados.git", "", "", "", ""])
+        answers = iter(
+            ["", "isso não é url", "https://github.com/exemplo/dados.git", "", "", "", "", "", ""]
+        )
         lines: list[str] = []
         plan = setup_mod.interactive_plan(
             self.plan(),

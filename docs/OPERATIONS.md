@@ -32,8 +32,9 @@ brain instance init --root ~/mneme \
   --remote <url do repositório de dados> \
   --drive-folder-id <drive-folder-id>
 brain instance migrate --source /caminho/legado --root ~/mneme
-brain assets sync --remote gdrive: --dry-run
-brain assets sync --remote gdrive:
+brain assets check
+brain assets sync --dry-run
+brain assets sync
 ```
 
 `assets sync` usa cópia Drive → cache e não apaga arquivos locais. O cache nunca entra no Git.
@@ -104,24 +105,30 @@ brain migrate-hermes apply --backup --limit 40  # cópia + manifesto (nunca apag
 Nada é apagado na origem; segredos são marcados `never_migrate`; o manifesto fica em
 `system/manifests/hermes-migration-YYYYMMDD.yaml`.
 
-## Integração com o Google Drive (documentos e assets)
+## Binários e backend remoto (rclone)
 
-O binário nunca entra no Git: o Mneme guarda **metadados e referências** (`resources/`), e o
-conteúdo vive no Drive (`AssetProvider` em `system/providers/assets.py`, provider `gdrive`).
-
-Não há pipeline fixo: a extração e o OCR são responsabilidade de quem opera a instalação.
+O binário nunca entra no Git: o Mneme guarda **metadados e referências** (`resources/`) e o conteúdo
+vive no backend remoto. O transporte é o rclone, então qualquer backend suportado por ele serve; o
+Google Drive é o padrão. O cache local é `assets/drive`, ignorado pelo Git e descartável.
 
 Fluxo recomendado:
 
-1. defina o `folder_id` da pasta que contém os binários e registre na configuração da instância;
-2. confira o `folder_id` do `mneme.yaml` contra o `folder_id` registrado nos índices espelhados em
-   `resources/`: se divergirem, a sincronização copia a árvore errada ou vazia sem emitir erro;
-3. rode `brain assets sync --remote gdrive: --dry-run` e só então a cópia real.
+1. instale o rclone e autorize o backend: `rclone config`; no Drive, `rclone config reconnect gdrive:`
+   se o token expirar;
+2. aponte o backend na configuração da instância: `providers.assets.remote` e, no Drive, `folder_id`;
+3. `brain assets check` para conferir binário, remote, tipo, pasta e cache;
+4. `brain assets sync --dry-run` para ver o que viria, e só então `brain assets sync`.
+
+O que o comando garante: sem rclone ou sem remote configurado ele falha com erro limpo e instrução,
+sem traceback e sem copiar nada; remote do tipo `drive` sem `folder_id` é recusado porque copiaria a
+raiz da conta; `folder_id` em backend não-Drive é ignorado com aviso; o cache precisa ser
+`assets/drive`, sem symlink e ignorado pelo Git; a cópia nunca apaga, só adiciona e atualiza.
 
 - Status por documento nos índices: `ok` (texto extraído) ou `needs_ocr` (pendente).
-- A origem é sempre o Drive; nada é enviado de volta, nada sai da máquina.
+- A origem é sempre o backend; nada é enviado de volta, nada sai da máquina.
 - Depois de cada sincronização, regenere os arquivos `resources/resource-<titulo>.md` para manter
   a contagem e os status atualizados. Nenhum binário entra no Git.
+- Não há pipeline fixo: a extração e o OCR são responsabilidade de quem opera a instalação.
 
 ## Fluxo de commit
 
@@ -141,6 +148,11 @@ Conflito de rebase: o `store.sync()` aborta o rebase, cria um branch de preserva
 | `mem0: pendente` | endpoint fora ou chave ausente | `brain sync` depois de corrigir; a fila está em `.mneme/mem0_pending.jsonl` |
 | `mem0: desabilitado` | provider desligado no `mneme.yaml` | esperado sem Mem0; para ligar, `brain setup --mem0-host https://api.mem0.ai` |
 | `mem0: não enviado (MEM0_API_KEY ausente)` | a plataforma exige credencial e não enfileira | exporte a chave no ambiente e rode `brain sync` |
+| `erro: rclone não encontrado` | binário ausente na máquina que sincroniza | `apt install rclone` ou o instalador oficial |
+| `erro: remote não configurado: gdrive:` | backend sem OAuth/config | `rclone config`; no Drive, `rclone config reconnect gdrive:` |
+| `remote do Google Drive sem ... folder_id` | copiaria a raiz inteira da conta | defina `providers.assets.folder_id` |
+| `Failed to create file system ... empty token found` | token do Drive expirado | `rclone config reconnect gdrive:` |
+| `folder_id ... ignorado no remote` | backend não é Drive | esperado; remova o `folder_id` ou use um remote do tipo drive |
 | `code: unavailable` | binário do provider ausente/erro | valide `brain code health`; o cérebro continua funcionando |
 | commit recusado | validação (segredo, YAML, tamanho) | corrija o conteúdo; nada foi escrito |
 | projeto não resolvido | projeto inexistente | `brain project new` + `brain organize` |
