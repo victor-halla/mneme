@@ -66,6 +66,31 @@ O instalador separa:
 - dados: `${MNEME_ROOT:-~/mneme}`;
 - skill: `${HERMES_HOME:-~/.hermes/profiles/dev}/skills/brain-manager`.
 
+## Configuração assistida
+
+O pacote traz um assistente que resolve os três valores que mudam de máquina para máquina: a raiz dos dados, o repositório Git da instância e a pasta raiz do Google Drive.
+
+```bash
+./system/scripts/setup.sh        # pergunta um valor por vez, com validação
+```
+
+Sem terminal interativo ele não escreve nada: mostra os valores que seriam aplicados e o comando exato para aplicar. Agentes e automação usam o modo sem perguntas:
+
+```bash
+./system/scripts/setup.sh --non-interactive \
+  --instance-root ~/mneme \
+  --instance-remote git@github.com:owner/repo-de-dados.git \
+  --drive-folder-id <id-da-pasta-no-drive> \
+  --mem0-host http://127.0.0.1:8888 \
+  --hermes-profile ~/.hermes/profiles/dev
+
+./system/scripts/setup.sh --dry-run        # confere sem escrever
+```
+
+Em ordem, ele instala o runtime, a skill e a CLI; consulta o remote da instância e decide entre clonar, quando o remote já tem conteúdo, e inicializar, quando está vazio ou não foi informado; escreve as chaves de configuração; e commita exatamente os arquivos que ele mesmo criou.
+
+Garantias: nunca sobrescreve dados, nunca apaga configuração e nunca faz push. Instância existente é adotada, e só as chaves informadas são alteradas. Remote inacessível falha antes de criar qualquer coisa, em vez de produzir uma instância local que divergiria do repositório.
+
 ## Criar ou migrar uma instância
 
 ```bash

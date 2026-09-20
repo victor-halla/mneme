@@ -434,6 +434,82 @@ def cmd_instance(args) -> int:
     return 0 if result.get("ok") else 1
 
 
+# -- assistente de instalação ---------------------------------------------------
+
+
+def cmd_setup(args) -> int:
+    from core import setup as setup_mod
+
+    home = Path.home()
+    plan = setup_mod.default_plan(home)
+    if args.instance_root or args.root:
+        plan.instance_root = args.instance_root or args.root
+    if args.instance_remote:
+        plan.instance_remote = args.instance_remote
+    if args.drive_folder_id:
+        plan.drive_folder_id = args.drive_folder_id
+    if args.mem0_host is not None:
+        plan.mem0_host = "" if args.no_mem0 else args.mem0_host
+    elif args.no_mem0:
+        plan.mem0_host = ""
+    if args.mem0_user:
+        plan.mem0_user = args.mem0_user
+    if args.mem0_key_env:
+        plan.mem0_key_env = args.mem0_key_env
+    if args.hermes_profile:
+        plan.hermes_profile = args.hermes_profile
+    if args.package_root:
+        plan.package_root = args.package_root
+    plan.install = not args.no_install
+    plan.commit = not args.no_commit
+
+    interactive = not args.non_interactive and sys.stdin.isatty()
+    if interactive:
+        plan = setup_mod.interactive_plan(plan, home=home)
+        print()
+        print(setup_mod.describe(plan))
+        print()
+        if args.yes or input("aplicar? [s/N]: ").strip().lower() in {"s", "sim", "y", "yes"}:
+            pass
+        else:
+            print("cancelado")
+            return 1
+    elif not args.non_interactive:
+        print("Sem terminal interativo: nada foi feito. Valores que seriam aplicados:")
+        print(setup_mod.describe(plan))
+        print()
+        print("Para aplicar sem perguntas, repita com --non-interactive e os valores desejados.")
+        print("Para conferir sem escrever: acrescente --dry-run.")
+        return 2
+
+    result = setup_mod.apply_plan(plan, home=home, dry_run=getattr(args, "dry_run", False))
+    if args.json:
+        _emit(result, True)
+    elif result.get("ok"):
+        print(f"{_mark(True)} configuração aplicada em {result['instance_root']}")
+        if result.get("files_created"):
+            print(f"  arquivos criados: {', '.join(result['files_created'])}")
+        commit = result.get("commit") or {}
+        if commit.get("commit"):
+            print(f"  commit: {commit['commit']}")
+        print()
+        print("próximos passos:")
+        print(f"  defina {plan.mem0_key_env} no ambiente (chave do Mem0)" if plan.mem0_host else "  Mem0 desativado nesta instância")
+        if plan.drive_folder_id:
+            print(f"  brain assets sync --remote gdrive:   # pasta {plan.drive_folder_id}")
+        print(f"  brain status   # com MNEME_ROOT={result['instance_root']}")
+    else:
+        print("configuração não aplicada", file=sys.stderr)
+        for error in result.get("errors", []) or [result.get("error", "erro desconhecido")]:
+            print(f"  erro: {error}", file=sys.stderr)
+        for warning in result.get("warnings", []):
+            print(f"  aviso: {warning}", file=sys.stderr)
+    for step in result.get("steps", []):
+        if step.get("ok") is False and step.get("error"):
+            print(f"  falha em {step.get('step')}: {step['error']}", file=sys.stderr)
+    return 0 if result.get("ok") else 1
+
+
 # -- migração ------------------------------------------------------------------
 
 
@@ -502,6 +578,22 @@ def build_parser() -> argparse.ArgumentParser:
     instance.add_argument("--remote", help="URL do repositório Git privado da instância")
     instance.add_argument("--drive-folder-id", help="ID da pasta raiz no Google Drive")
     instance.set_defaults(func=cmd_instance)
+
+    setup = sub.add_parser("setup", parents=[COMMON], help="assistente de instalação e configuração")
+    setup.add_argument("--instance-root", help="raiz dos dados da instância (default: MNEME_ROOT ou ~/mneme)")
+    setup.add_argument("--instance-remote", help="URL do repositório Git privado da instância")
+    setup.add_argument("--drive-folder-id", help="ID da pasta raiz no Google Drive")
+    setup.add_argument("--mem0-host", help="host do Mem0 (default: http://127.0.0.1:8888)")
+    setup.add_argument("--no-mem0", action="store_true", help="desativa o Mem0 nesta instância")
+    setup.add_argument("--mem0-user", help="user_id do Mem0 (default: default)")
+    setup.add_argument("--mem0-key-env", help="variável de ambiente da chave do Mem0 (default: MEM0_API_KEY)")
+    setup.add_argument("--hermes-profile", help="diretório do perfil do Hermes que recebe a skill")
+    setup.add_argument("--package-root", help="destino do runtime (default: ~/.local/share/mneme-package)")
+    setup.add_argument("--non-interactive", action="store_true", help="aplica sem perguntar")
+    setup.add_argument("--yes", action="store_true", help="confirma automaticamente no modo interativo")
+    setup.add_argument("--no-install", action="store_true", help="não instala runtime, skill e CLI")
+    setup.add_argument("--no-commit", action="store_true", help="não commita a configuração da instância")
+    setup.set_defaults(func=cmd_setup)
 
     assets = sub.add_parser("assets", parents=[COMMON], help="cache local de arquivos do Google Drive")
     assets.add_argument("assets_action", choices=["sync"])
@@ -612,6 +704,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "instance":
         return cmd_instance(args)
+    if args.command == "setup":
+        # Roda antes de qualquer instância existir: não depende de mneme.yaml.
+        return cmd_setup(args)
     try:
         config = MnemeConfig(root=args.root)
     except FileNotFoundError as exc:

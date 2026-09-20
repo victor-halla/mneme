@@ -11,6 +11,8 @@
 
 ## Preparação
 
+Configuração assistida: `./system/scripts/setup.sh` resolve os valores que variam por máquina (raiz dos dados, remote Git da instância e pasta do Drive), instala runtime, skill e CLI e cria ou adota a instância. Sem terminal interativo ele não escreve nada, apenas mostra o comando para aplicar.
+
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
 export MNEME_ROOT="$HOME/mneme"
