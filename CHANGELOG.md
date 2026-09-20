@@ -11,6 +11,8 @@ release; o que ainda não foi publicado fica em `Unreleased`.
   `mneme.yaml`, com o `AGENTS.md` da instância explicando as categorias (identificador, contato,
   endereço, saúde, documento), o modo 600 e o fato de o arquivo ser por host. O cérebro guarda o fato e
   a referência; o valor nunca entra no Markdown versionado.
+- `brain validate` avisa quando `privacy.sensitive_file` aponta para dentro da instância, porque esse
+  arquivo nunca pode ser alcançado por `git add`.
 - Bootstrap público `install.sh` para instalação por URL, com Python 3.11+, venv privado, versão ativa
   por symlink, checksum opcional, manifesto por release, limites de extração, `flock` e suporte a
   execução por pipe.
@@ -36,6 +38,8 @@ release; o que ainda não foi publicado fica em `Unreleased`.
 
 ### Corrigido
 
+- Entidade criada por `brain remember --entity <id>` recebe nome legível derivado do ID estável
+  (`person-ana-souza` → `Ana Souza`), em vez de repetir a frase do fato no campo `name`.
 - Instalação passou a ser transacional: CLI e skill são preparadas antes da promoção e qualquer falha
   restaura `current`, CLI e skill anteriores.
 - Republicação da mesma versão com conteúdo diferente é recusada, em vez de reutilizar silenciosamente

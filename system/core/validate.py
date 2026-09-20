@@ -224,6 +224,41 @@ def validate_meta(relpath: str, meta: dict[str, Any], content: str = "") -> list
     return problems
 
 
+def _sensitive_file_problem(root: Path) -> dict[str, str] | None:
+    """Aviso quando o arquivo de dados pessoais aponta para dentro do repositório da instância.
+
+    O valor (identificador, contato, endereço, saúde, documento) não pode ser versionado: o destino
+    precisa ficar fora da árvore alcançada por `git add`.
+    """
+
+    config_path = root / "mneme.yaml"
+    if not config_path.is_file():
+        return None
+    try:
+        data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    except (OSError, yaml.YAMLError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    sensitive = str((data.get("privacy") or {}).get("sensitive_file") or "").strip()
+    if not sensitive:
+        return None
+    path = Path(sensitive).expanduser()
+    if not path.is_absolute():
+        path = root / path
+    try:
+        path.resolve().relative_to(root.resolve())
+    except ValueError:
+        return None
+    return {
+        "path": "mneme.yaml",
+        "message": (
+            f"privacy.sensitive_file aponta para dentro da instância ({sensitive}); "
+            "o arquivo de dados pessoais não versionáveis precisa ficar fora do repositório"
+        ),
+    }
+
+
 def validate_root(root: str | Path) -> dict[str, Any]:
     """Valida o repositório inteiro: YAML, IDs únicos, relações, datas, segredos, tamanho."""
     root = Path(root)
@@ -240,6 +275,10 @@ def validate_root(root: str | Path) -> dict[str, Any]:
         "large_files": [],
         "gitleaks": run_gitleaks(root),
     }
+
+    sensitive_problem = _sensitive_file_problem(root)
+    if sensitive_problem:
+        report["warnings"].append(sensitive_problem)
 
     for directory in ("entities", "projects", "areas", "knowledge", "timeline", "resources", "inbox"):
         base = root / directory

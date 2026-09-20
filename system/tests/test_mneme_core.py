@@ -5,11 +5,14 @@ Requisitos 1-9 da Fase 27 do plano.
 
 from __future__ import annotations
 
+import shutil
+import tempfile
 import unittest
+from pathlib import Path
 
 from .helpers import MnemeTestCase
 
-from core import models
+from core import models, validate as validate_mod
 from core.projects import create_project
 
 
@@ -29,6 +32,21 @@ class TestMnemeCore(MnemeTestCase):
         self.assertEqual(meta["id"], "person-ana-souza")
         self.assertEqual(meta["type"], "person")
         self.assertIn("Ana Souza", body)
+
+    # 1b) entidade nova recebe nome do ID, não a frase do fato
+    def test_01b_entidade_nova_usa_nome_derivado_do_id(self) -> None:
+        receipt = self.brain.remember(
+            "Pessoa Exemplo informou identificador; valor no arquivo restrito.",
+            type_="relationship",
+            entity_id="person-pessoa-exemplo",
+            sync_mem0=False,
+        )
+
+        self.assertTrue(receipt["ok"], receipt)
+        meta, body = models.read_document(self.tmp / "entities/people/person-pessoa-exemplo.md")
+        self.assertEqual(meta["id"], "person-pessoa-exemplo")
+        self.assertEqual(meta["name"], "Pessoa Exemplo")
+        self.assertIn("arquivo restrito", body)
 
     # 2) atualizar entidade (append, sem perder histórico)
     def test_02_update_entity(self) -> None:
@@ -86,6 +104,41 @@ class TestMnemeCore(MnemeTestCase):
         self.assertEqual(events[0]["title"], "Reunião com a equipe de dados.")
         self.assertTrue(self.brain.validate()["ok"])
 
+    # 6c) arquivo de dados pessoais: precisa ficar fora da instância
+    def test_06c_validate_avisa_quando_arquivo_sensivel_esta_na_instancia(self) -> None:
+        self.config_data["privacy"] = {"sensitive_file": "identificadores.md"}
+        self._make_brain()
+        (self.tmp / "identificadores.md").write_text("<id> | identificador | <valor>\n", encoding="utf-8")
+
+        report = validate_mod.validate_root(self.tmp)
+
+        self.assertTrue(
+            any("privacy.sensitive_file" in warning["message"] for warning in report["warnings"]),
+            report["warnings"],
+        )
+        self.assertTrue(report["ok"])
+
+    def test_06d_validate_nao_avisa_quando_arquivo_sensivel_esta_fora(self) -> None:
+        fora = Path(tempfile.mkdtemp(prefix="mneme-sensitive-")) / "identificadores.md"
+        self.addCleanup(shutil.rmtree, fora.parent, ignore_errors=True)
+        self.config_data["privacy"] = {"sensitive_file": str(fora)}
+        self._make_brain()
+
+        report = validate_mod.validate_root(self.tmp)
+
+        self.assertFalse(
+            any("privacy.sensitive_file" in warning["message"] for warning in report["warnings"]),
+            report["warnings"],
+        )
+
+    def test_06e_validate_ignora_instancia_sem_privacy(self) -> None:
+        report = validate_mod.validate_root(self.tmp)
+
+        self.assertFalse(
+            any("privacy.sensitive_file" in warning["message"] for warning in report["warnings"]),
+            report["warnings"],
+        )
+
     # 6) validar YAML / 7) detectar ID duplicado
     def test_06_validate_and_duplicate_ids(self) -> None:
         self.brain.remember("Fato válido para validação.", type_="note", sync_mem0=False)
@@ -142,6 +195,23 @@ class TestMnemeCore(MnemeTestCase):
         self.assertTrue(models.is_valid_id("project-mneme"))
         self.assertFalse(models.is_valid_id("Project Mneme"))
         self.assertEqual(models.path_for_id("person-joao-silva"), "entities/people/person-joao-silva.md")
+
+
+class TestTitleFromId(unittest.TestCase):
+    """Nome legível derivado do ID estável (o primeiro segmento é o tipo)."""
+
+    def test_deriva_nome_de_pessoa(self) -> None:
+        self.assertEqual(models.title_from_id("person-ana-souza"), "Ana Souza")
+
+    def test_mantem_conectivos_minusculos(self) -> None:
+        self.assertEqual(models.title_from_id("person-ana-de-souza"), "Ana de Souza")
+
+    def test_id_sem_tipo_usa_o_proprio_texto(self) -> None:
+        self.assertEqual(models.title_from_id("pessoa"), "Pessoa")
+
+    def test_id_vazio_nao_quebra(self) -> None:
+        self.assertEqual(models.title_from_id(""), "sem título")
+        self.assertEqual(models.title_from_id("person-"), "Person")
 
 
 if __name__ == "__main__":

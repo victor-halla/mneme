@@ -212,7 +212,8 @@ class Brain:
                 meta["updated"] = models.today_iso()
                 body = f"{body.strip()}\n\n### {models.today_iso()} — atualização\n\n{text.strip()}\n"
                 return {"path": relpath, "content": models.join_document(meta, body), "action": "append"}
-            meta = models.new_meta(entity, "person", _title_for(text))
+            # Nome derivado do ID estável: o texto do fato é conteúdo, não nome de entidade.
+            meta = models.new_meta(entity, "person", models.title_from_id(entity))
             body = f"{text.strip()}\n"
             return {"path": relpath, "content": models.join_document(meta, body), "action": "create"}
 

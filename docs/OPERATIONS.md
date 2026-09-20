@@ -106,6 +106,8 @@ Características do arranjo:
 
 - o arquivo é **por host**: não é sincronizado pelo Git e não deve ser copiado entre máquinas. Cada host
   mantém o seu, e o que se compartilha é o fato e a referência;
+- `brain validate` avisa quando o caminho declarado cai dentro da instância, porque esse arquivo nunca
+  pode ser alcançado por `git add`;
 - `~/.hermes` é runtime do harness e nunca base de conhecimento; gravar em pasta privada do harness não
   vale como destino;
 - credencial continua proibida em qualquer lugar do cérebro e também não vai para esse arquivo: `.env`

@@ -76,6 +76,23 @@ def make_id(type_: str, name: str, max_len: int = 60) -> str:
     return f"{slugify(type_, 20)}-{slugify(name, max_len)}"
 
 
+# Conectivos que ficam minúsculos no nome legível derivado do ID.
+LOWERCASE_PARTICLES = {"de", "da", "do", "das", "dos", "e", "van", "von", "del", "di", "la", "le"}
+
+
+def title_from_id(id_: str, max_len: int = 120) -> str:
+    """Nome legível derivado do ID estável (`person-ana-souza` -> `Ana Souza`)."""
+    prefix, _, rest = (id_ or "").partition("-")
+    words = [word for word in re.split(r"[-_\s]+", rest or prefix) if word]
+    if not words:
+        return "sem título"
+    titled = [words[0].capitalize()]
+    titled += [
+        word if word in LOWERCASE_PARTICLES else word.capitalize() for word in words[1:]
+    ]
+    return " ".join(titled)[:max_len]
+
+
 def is_valid_id(value: str) -> bool:
     return bool(ID_RE.match(value or ""))
 
