@@ -53,6 +53,8 @@ class SetupPlan:
     mem0_user: str = ""
     mem0_key_env: str = "MEM0_API_KEY"
     hermes_profile: str = ""
+    harness: str = "hermes"
+    skills_base: str = ""
     package_root: str = ""
     install: bool = True
     commit: bool = True
@@ -125,8 +127,11 @@ def validate(plan: SetupPlan, home: Path | None = None) -> tuple[list[str], list
     if plan.mem0_host and not MEM0_HOST_RE.match(plan.mem0_host):
         errors.append(f"host do Mem0 inválido: {plan.mem0_host} (use http:// ou https://)")
 
-    if plan.hermes_profile and not Path(plan.hermes_profile).expanduser().is_dir():
-        warnings.append(f"perfil do Hermes ainda não existe: {plan.hermes_profile} (será criado)")
+    skill_base = plan.skills_base or (
+        str(base / ".claude") if plan.harness == "claude" else plan.hermes_profile
+    )
+    if skill_base and not Path(skill_base).expanduser().is_dir():
+        warnings.append(f"base da skill ainda não existe: {skill_base} (será criada)")
     if plan.package_root and Path(plan.package_root).expanduser().is_relative_to(base) is False:
         warnings.append(f"runtime fora do home: {plan.package_root}")
 
@@ -145,6 +150,14 @@ def _rclone_remotes() -> str:
     except (OSError, subprocess.SubprocessError):
         return ""
     return result.stdout
+
+
+def _git_config_value(key: str) -> str:
+    try:
+        result = subprocess.run(["git", "config", "--get", key], capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return result.stdout.strip() if result.returncode == 0 else ""
 
 
 def _remote_state(url: str) -> str:
@@ -168,7 +181,11 @@ def _install(plan: SetupPlan, env: dict[str, str]) -> dict[str, Any]:
     if not INSTALLER.is_file():
         return {"ok": False, "error": f"instalador ausente: {INSTALLER}"}
     command = ["bash", str(INSTALLER)]
-    if plan.hermes_profile:
+    if plan.skills_base:
+        command += ["--base-dir", str(Path(plan.skills_base).expanduser())]
+    elif plan.harness and plan.harness != "hermes":
+        command += ["--harness", plan.harness]
+    elif plan.hermes_profile:
         command.append(str(Path(plan.hermes_profile).expanduser()))
     result = subprocess.run(command, capture_output=True, text=True, env=env)
     if result.returncode != 0:
@@ -203,6 +220,10 @@ def _patch_config(config_path: Path, plan: SetupPlan) -> list[str]:
     # None = não mexer; "" = desativar de propósito; qualquer host = informado.
     if plan.mem0_host:
         put(mem0, "host", plan.mem0_host, "providers.mem0.host")
+        from providers.mem0_provider import resolve_protocol
+
+        protocol = resolve_protocol(plan.mem0_host)
+        put(mem0, "api", protocol, "providers.mem0.api")
         if mem0.get("enabled") is not True:
             mem0["enabled"] = True
             changed.append("providers.mem0.enabled")
@@ -411,8 +432,14 @@ def interactive_plan(
     elif mem0_current:
         host_default = str(mem0_current.get("host") or "") if mem0_current.get("enabled") else ""
     else:
-        host_default = "http://127.0.0.1:8888"
+        from providers.mem0_provider import DEFAULT_PLATFORM_HOST
+
+        host_default = DEFAULT_PLATFORM_HOST
     user_default = plan.mem0_user or str(mem0_current.get("user_id") or ("default" if not mem0_current else ""))
+
+    if not remote_default:
+        suggestion = f"git@github.com:{_git_config_value('github.user') or 'SEU-USUARIO'}/mneme-hermes.git"
+        output(f"Se o repositório privado dos dados ainda não existe, o nome sugerido é {suggestion}")
 
     root = _ask("1/6 raiz dos dados da instância", plan.instance_root, input_fn=input_fn, output=output)
     remote = _ask(
@@ -430,14 +457,19 @@ def interactive_plan(
         output=output,
     )
     host = _ask(
-        "4/6 host do Mem0 ('-' desativa)",
+        "4/6 host do Mem0 (cloud é o padrão; self-hosted seria http://127.0.0.1:8888; '-' desativa)",
         host_default,
         validate_value=lambda value: None if not value or MEM0_HOST_RE.match(value) else "use http:// ou https://",
         input_fn=input_fn,
         output=output,
     )
     user = _ask("5/6 user_id do Mem0", user_default, input_fn=input_fn, output=output)
-    profile = _ask("6/6 perfil do Hermes que recebe a skill", plan.hermes_profile, input_fn=input_fn, output=output)
+    profile = _ask(
+        "6/6 base da skill (perfil do Hermes; para Claude Code use ~/.claude)",
+        plan.skills_base or plan.hermes_profile,
+        input_fn=input_fn,
+        output=output,
+    )
 
     return SetupPlan(
         instance_root=root,
@@ -447,6 +479,8 @@ def interactive_plan(
         mem0_user=user,
         mem0_key_env=plan.mem0_key_env,
         hermes_profile=profile,
+        harness=plan.harness,
+        skills_base=profile,
         package_root=plan.package_root,
         install=plan.install,
         commit=plan.commit,
@@ -468,7 +502,7 @@ def describe(plan: SetupPlan) -> str:
         f"remote Git da instância: {plan.instance_remote or '(sem remote)'}",
         f"pasta do Drive        : {plan.drive_folder_id or '(não mexer)'}",
         f"Mem0                  : {mem0}",
-        f"perfil do Hermes      : {plan.hermes_profile}",
+        f"skill ({plan.harness})          : {plan.skills_base or plan.hermes_profile}",
         f"runtime               : {plan.package_root}",
         f"instalar runtime/skill: {'sim' if plan.install else 'não'}",
     ]

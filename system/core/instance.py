@@ -73,13 +73,31 @@ __pycache__/
 
 INSTANCE_AGENTS = """# Instância Mneme
 
-Este repositório contém os dados canônicos do Mneme desta instalação.
+Este repositório contém os dados canônicos do Mneme desta instalação, em Markdown e YAML.
+Qualquer agente que saiba ler arquivos e executar comandos de shell usa estes dados, e este
+arquivo é o contrato comum entre harnesses: Hermes, Claude Code, Codex e outros que leem
+`AGENTS.md`.
 
 - Markdown/YAML versionado é a fonte canônica.
 - `.mneme/` contém estado derivado e nunca é versionado.
 - `assets/drive/` é cache local do Google Drive e nunca é versionado (qualquer profundidade).
 - Conteúdo `secret`, credenciais e tokens nunca entram no Git.
 - Não faça push sem autorização explícita do proprietário.
+
+## Como ler e escrever
+
+```bash
+brain status                                  # estado de todas as camadas
+brain search "termo"                          # busca textual no cérebro
+brain get project-exemplo                     # lê um documento por ID ou caminho
+brain context project-exemplo --query "impacto"
+brain remember "decidimos X por Y"            # grava no lugar certo e commita
+brain validate                                # valida a árvore inteira
+```
+
+A CLI fica em `~/.local/bin/brain`, o runtime em `~/.local/share/mneme-package`, e ambos
+respeitam `MNEME_PACKAGE_ROOT` e `MNEME_ROOT`. Sem a CLI, os arquivos continuam legíveis e
+graváveis por qualquer editor: a CLI só organiza, indexa e commita.
 
 ## Permissões
 
@@ -117,7 +135,10 @@ def _instance_config(remote: str, drive_folder_id: str) -> dict[str, Any]:
         "providers": {
             "mem0": {
                 "enabled": True,
-                "host": "http://127.0.0.1:8888",  # ajuste para o seu mem0 self-hosted
+                # Mem0 cloud por padrão; para self-hosted use api: self-hosted e
+                # host: http://127.0.0.1:8888 (servidor `mem0 serve`).
+                "api": "platform",
+                "host": "https://api.mem0.ai",
                 "user_id": "default",
                 "agent_id": "mneme",
                 "api_key_env": "MEM0_API_KEY",

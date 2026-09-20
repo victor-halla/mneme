@@ -79,9 +79,9 @@ Sem terminal interativo ele não escreve nada: mostra os valores que seriam apli
 ```bash
 ./system/scripts/setup.sh --non-interactive \
   --instance-root ~/mneme \
-  --instance-remote git@github.com:owner/repo-de-dados.git \
+  --instance-remote git@github.com:USUARIO/mneme-hermes.git \
   --drive-folder-id <id-da-pasta-no-drive> \
-  --mem0-host http://127.0.0.1:8888 \
+  --mem0-host https://api.mem0.ai \
   --hermes-profile ~/.hermes/profiles/dev
 
 ./system/scripts/setup.sh --dry-run        # confere sem escrever
@@ -123,6 +123,52 @@ brain organize
 brain validate
 brain reindex
 brain sync
+```
+
+## Mem0
+
+O Mem0 é memória semântica derivada: o Markdown continua sendo a fonte canônica e o Mem0 é reconstruível a partir dela. O padrão do pacote é o Mem0 cloud:
+
+```yaml
+providers:
+  mem0:
+    enabled: true
+    api: platform
+    host: https://api.mem0.ai
+    user_id: default
+    agent_id: mneme
+    api_key_env: MEM0_API_KEY
+```
+
+Na plataforma a chave vai em `Authorization: Token`, e a instância precisa de `MEM0_API_KEY` no ambiente. Para um servidor OSS próprio (`mem0 serve`), troque o bloco para `api: self-hosted` e `host: http://127.0.0.1:8888`.
+
+Os caminhos diferem por protocolo: `/v3/memories/add/` e `/v3/memories/search/` na plataforma, `/memories` e `/search` no OSS. Sem `api` declarada, o protocolo é inferido pelo host, e host cujo domínio termina em `mem0.ai` é tratado como plataforma.
+
+### Funciona sem o Mem0
+
+Funciona por inteiro, e é uma escolha normal, não um modo degradado. Use `enabled: false` ou `brain setup --no-mem0`. Nesse caso:
+
+- nenhuma rede: nenhuma chamada é tentada e nenhuma pendência é enfileirada;
+- `brain remember` grava o Markdown, cria o commit e informa `mem0: desabilitado`;
+- `brain search` e `brain context` usam o índice local (SQLite FTS) e a árvore Git;
+- `brain status` mostra `Mem0 disabled — n/d` como informação de configuração;
+- `brain sync` reporta `0 enviado(s), 0 falha(s), 0 pendente(s)` e segue com o Git.
+
+O que se perde é a busca semântica por similaridade entre sessões e máquinas. O que fica é o cérebro inteiro em texto, versionado.
+
+## Outros harnesses
+
+Os dados não pertencem a nenhum harness: são Markdown e YAML em um repositório Git privado. Qualquer agente que leia arquivos e execute comandos de shell usa esses dados, sem integração específica.
+
+- **CLI e skill**: `./system/scripts/install_skill.sh --harness claude` instala a mesma skill em `~/.claude/skills/brain-manager`, porque o `SKILL.md` segue o padrão aberto Agent Skills, o mesmo do Claude Code. Para qualquer outro harness, `--base-dir <dir>` instala em `<dir>/skills/brain-manager`.
+- **Instruções**: a instância traz `AGENTS.md`, o contrato comum entre agentes. O Codex lê esse arquivo direto; o Claude Code usa `CLAUDE.md`, então aponte um para o outro (`ln -s AGENTS.md CLAUDE.md` na raiz da instância) em vez de manter duas cópias.
+- **Dados**: clone o repositório privado da instância na máquina do outro harness e exporte `MNEME_ROOT` e `MNEME_PACKAGE_ROOT`. Sem a CLI, os arquivos continuam legíveis e graváveis por qualquer editor; a CLI só organiza, indexa e commita.
+
+```bash
+git clone git@github.com:USUARIO/mneme-hermes.git ~/mneme
+export MNEME_ROOT="$HOME/mneme"
+brain search "orçamento"                  # ou leia knowledge/ direto
+brain remember "decidimos X por Y"        # grava, commita e sincroniza
 ```
 
 ## Dados confidenciais

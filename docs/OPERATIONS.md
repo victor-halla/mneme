@@ -139,6 +139,8 @@ Conflito de rebase: o `store.sync()` aborta o rebase, cria um branch de preserva
 | `brain search` não acha algo recém-gravado | índice desatualizado | `brain reindex` |
 | `brain validate` com erro de ID duplicado | duas entidades com o mesmo ID | consolide e remova a duplicata |
 | `mem0: pendente` | endpoint fora ou chave ausente | `brain sync` depois de corrigir; a fila está em `.mneme/mem0_pending.jsonl` |
+| `mem0: desabilitado` | provider desligado no `mneme.yaml` | esperado sem Mem0; para ligar, `brain setup --mem0-host https://api.mem0.ai` |
+| `mem0: não enviado (MEM0_API_KEY ausente)` | a plataforma exige credencial e não enfileira | exporte a chave no ambiente e rode `brain sync` |
 | `code: unavailable` | binário do provider ausente/erro | valide `brain code health`; o cérebro continua funcionando |
 | commit recusado | validação (segredo, YAML, tamanho) | corrija o conteúdo; nada foi escrito |
 | projeto não resolvido | projeto inexistente | `brain project new` + `brain organize` |

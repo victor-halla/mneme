@@ -67,7 +67,8 @@ class SetupTest(unittest.TestCase):
         self.assertTrue((self.instance / "entities" / "people").is_dir())
 
         data = self.config()
-        self.assertEqual(data["providers"]["mem0"]["host"], "http://127.0.0.1:8888")
+        self.assertEqual(data["providers"]["mem0"]["host"], "https://api.mem0.ai")
+        self.assertEqual(data["providers"]["mem0"]["api"], "platform")
         self.assertEqual(data["providers"]["mem0"]["user_id"], "default")
         self.assertTrue(data["providers"]["mem0"]["enabled"])
 
@@ -102,6 +103,35 @@ class SetupTest(unittest.TestCase):
         self.assertEqual(data["providers"]["mem0"]["host"], "http://172.16.123.19:8888")
         self.assertEqual(data["providers"]["mem0"]["user_id"], "victor")
         self.assertEqual(data["providers"]["mem0"]["api_key_env"], "MEM0_API_KEY")
+
+    def test_mem0_self_hosted_grava_protocolo_correto(self) -> None:
+        self.assertTrue(self.apply(self.plan(install=False, mem0_host="http://172.16.123.19:8888"))["ok"])
+
+        data = self.config()["providers"]["mem0"]
+        self.assertEqual(data["host"], "http://172.16.123.19:8888")
+        self.assertEqual(data["api"], "self-hosted")
+
+    def test_instalacao_da_skill_para_claude_code(self) -> None:
+        claude_home = self.home / ".claude"
+
+        completed = subprocess.run(
+            ["bash", str(SYSTEM_DIR / "scripts" / "install_skill.sh"), "--harness", "claude"],
+            env=dict(self.env, CLAUDE_HOME=str(claude_home)),
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertTrue((claude_home / "skills" / "brain-manager" / "SKILL.md").is_file())
+
+    def test_setup_instala_para_o_harness_claude(self) -> None:
+        plan = self.plan(harness="claude", hermes_profile="")
+
+        result = setup_mod.apply_plan(plan, home=self.home, env=self.env, output=lambda *_: None)
+
+        self.assertTrue(result["ok"], result)
+        self.assertTrue((self.home / ".claude" / "skills" / "brain-manager" / "SKILL.md").is_file())
 
     def _bare_remote(self, with_content: bool = False) -> str:
         """Remote local de verdade: testa clone e consulta sem depender de rede."""

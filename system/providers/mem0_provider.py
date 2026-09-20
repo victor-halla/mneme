@@ -1,4 +1,12 @@
-"""Mem0Provider — adapter fino sobre o mem0 self-hosted.
+"""Mem0Provider — adapter sobre o Mem0 em dois protocolos.
+
+- `self-hosted`: servidor OSS (`mem0 serve`, porta 8888), caminhos `/memories`
+  e `/search`, autenticação em `X-API-Key`.
+- `platform`: Mem0 cloud (`https://api.mem0.ai`), caminhos `/v3/memories/add/` e
+  `/v3/memories/search/`, autenticação em `Authorization: Token`.
+
+O protocolo vem de `providers.mem0.api`; sem essa chave, é inferido pelo host.
+
 
 Contrato real do servidor (FastAPI):
   POST /search   {"query", "top_k", "filters"}     -> {"results": [...]}
@@ -20,6 +28,35 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
+
+
+PROTOCOL_PATHS: dict[str, dict[str, str]] = {
+    "self-hosted": {
+        "add": "/memories",
+        "search": "/search",
+        "update": "/memories/{memory_id}",
+        "delete": "/memories/{memory_id}",
+    },
+    "platform": {
+        "add": "/v3/memories/add/",
+        "search": "/v3/memories/search/",
+        "update": "/v1/memories/{memory_id}/",
+        "delete": "/v1/memories/{memory_id}/",
+    },
+}
+DEFAULT_PLATFORM_HOST = "https://api.mem0.ai"
+
+
+def resolve_protocol(host: str, declared: str = "") -> str:
+    """Protocolo declarado em `providers.mem0.api`, ou inferido pelo host."""
+
+    value = str(declared or "").strip().lower()
+    if value in PROTOCOL_PATHS:
+        return value
+    candidate = host if "://" in host else f"//{host}"
+    netloc = urlparse(candidate).netloc.lower()
+    return "platform" if netloc.endswith("mem0.ai") else "self-hosted"
 
 
 class Mem0Provider:
@@ -29,6 +66,8 @@ class Mem0Provider:
         self.config = config
         block = config.mem0 or {}
         self.host: str = str(block.get("host", "")).rstrip("/")
+        self.protocol: str = resolve_protocol(self.host, str(block.get("api", "")))
+        self.paths: dict[str, str] = PROTOCOL_PATHS[self.protocol]
         self.user_id: str = str(block.get("user_id", "default"))
         self.agent_id: str = str(block.get("agent_id", "mneme"))
         self.timeout: int = int(block.get("timeout", 20))
@@ -40,9 +79,12 @@ class Mem0Provider:
 
     # -- HTTP -----------------------------------------------------------------
     def _headers(self) -> dict[str, str]:
-        headers = {"Content-Type": "application/json"}
+        headers = {"Content-Type": "application/json", "Accept": "application/json"}
         if self.api_key:
-            headers["X-API-Key"] = self.api_key
+            if self.protocol == "platform":
+                headers["Authorization"] = f"Token {self.api_key}"
+            else:
+                headers["X-API-Key"] = self.api_key
         return headers
 
     def _request(self, method: str, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -79,6 +121,21 @@ class Mem0Provider:
         return self._redact(f"{type(exc).__name__}: {exc}")
 
     # -- interface SemanticMemoryProvider -------------------------------------
+    # -- guardas de disponibilidade -------------------------------------------
+    def _unavailable(self) -> dict[str, Any] | None:
+        """Bloqueio que impede até a tentativa de rede, ou None se pode tentar.
+
+        Desativado e credencial ausente na plataforma não são falhas transitórias:
+        não vão para a fila de pendências, porque não se resolvem sozinhas.
+        """
+
+        if not self.enabled:
+            return {"ok": False, "disabled": True, "error": "provider desabilitado no mneme.yaml"}
+        if self.protocol == "platform" and not self.api_key:
+            env_name = self.config.mem0.get("api_key_env", "MEM0_API_KEY")
+            return {"ok": False, "skipped": True, "error": f"{env_name} ausente no ambiente"}
+        return None
+
     def health(self) -> dict[str, Any]:
         if not self.enabled:
             return {"ok": False, "status": "disabled", "reason": "provider desabilitado no mneme.yaml"}
@@ -89,7 +146,7 @@ class Mem0Provider:
                 "reason": f"{self.config.mem0.get('api_key_env', 'MEM0_API_KEY')} ausente no ambiente",
             }
         try:
-            result = self._request("POST", "/search", {"query": "health check", "top_k": 1, "filters": {"user_id": self.user_id}})
+            result = self._request("POST", self.paths["search"], {"query": "health check", "top_k": 1, "filters": {"user_id": self.user_id}})
         except Exception as exc:
             self.last_error = self._safe_error(exc)
             return {"ok": False, "status": "unreachable", "reason": self.last_error, "host": self.host}
@@ -111,7 +168,10 @@ class Mem0Provider:
         return health
 
     def add(self, text: str, metadata: dict[str, Any] | None = None, infer: bool = False) -> dict[str, Any]:
-        """Grava uma memória derivada. Em falha, enfileira para reprocessar."""
+        """Grava uma memória derivada. Em falha transitória, enfileira para reprocessar."""
+        blocked = self._unavailable()
+        if blocked:
+            return blocked
         payload = {
             "messages": [{"role": "user", "content": text}],
             "user_id": self.user_id,
@@ -121,7 +181,7 @@ class Mem0Provider:
         if metadata:
             payload["metadata"] = metadata
         try:
-            response = self._request("POST", "/memories", payload)
+            response = self._request("POST", self.paths["add"], payload)
             return {"ok": True, "response": response}
         except Exception as exc:
             error = self._safe_error(exc)
@@ -130,11 +190,14 @@ class Mem0Provider:
             return {"ok": False, "queued": True, "error": error}
 
     def search(self, query: str, top_k: int | None = None, filters: dict[str, Any] | None = None) -> dict[str, Any]:
+        blocked = self._unavailable()
+        if blocked:
+            return {**blocked, "results": []}
         effective = {"user_id": self.user_id, **(filters or {})}
         try:
             result = self._request(
                 "POST",
-                "/search",
+                self.paths["search"],
                 {"query": query, "top_k": int(top_k or self.top_k), "filters": effective},
             )
         except Exception as exc:
@@ -156,15 +219,21 @@ class Mem0Provider:
         return {"ok": True, "results": normalized, "host": self.host}
 
     def update(self, memory_id: str, text: str) -> dict[str, Any]:
+        blocked = self._unavailable()
+        if blocked:
+            return blocked
         try:
-            self._request("PUT", f"/memories/{memory_id}", {"text": text})
+            self._request("PUT", self.paths["update"].format(memory_id=memory_id), {"text": text})
             return {"ok": True}
         except Exception as exc:
             return {"ok": False, "error": self._safe_error(exc)}
 
     def delete(self, memory_id: str) -> dict[str, Any]:
+        blocked = self._unavailable()
+        if blocked:
+            return blocked
         try:
-            self._request("DELETE", f"/memories/{memory_id}")
+            self._request("DELETE", self.paths["delete"].format(memory_id=memory_id))
             return {"ok": True}
         except Exception as exc:
             return {"ok": False, "error": self._safe_error(exc)}

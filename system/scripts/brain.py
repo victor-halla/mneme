@@ -150,7 +150,14 @@ def cmd_remember(brain: actions.Brain, args) -> int:
     print(f"commit        : {receipt.get('commit') or '(sem commit)'}")
     mem0 = receipt.get("mem0") or {}
     if mem0:
-        status = "sincronizado" if mem0.get("ok") else f"pendente ({mem0.get('error', 'indisponível')})"
+        if mem0.get("ok"):
+            status = "sincronizado"
+        elif mem0.get("disabled"):
+            status = "desabilitado (mem0 desativado no mneme.yaml)"
+        elif mem0.get("queued"):
+            status = f"pendente ({mem0.get('error', 'indisponível')})"
+        else:
+            status = f"não enviado ({mem0.get('error', 'indisponível')})"
         print(f"mem0          : {status}")
     for warning in receipt.get("warnings", []):
         print(f"aviso         : {warning}")
@@ -458,6 +465,10 @@ def cmd_setup(args) -> int:
         plan.mem0_key_env = args.mem0_key_env
     if args.hermes_profile:
         plan.hermes_profile = args.hermes_profile
+    if args.harness:
+        plan.harness = args.harness
+    if args.skills_base:
+        plan.skills_base = args.skills_base
     if args.package_root:
         plan.package_root = args.package_root
     plan.install = not args.no_install
@@ -593,6 +604,8 @@ def build_parser() -> argparse.ArgumentParser:
     setup.add_argument("--mem0-user", help="user_id do Mem0 (default: default)")
     setup.add_argument("--mem0-key-env", help="variável de ambiente da chave do Mem0 (default: MEM0_API_KEY)")
     setup.add_argument("--hermes-profile", help="diretório do perfil do Hermes que recebe a skill")
+    setup.add_argument("--harness", choices=["hermes", "claude"], help="onde instalar a skill (default: hermes)")
+    setup.add_argument("--skills-base", help="base que recebe skills/brain-manager (ex.: ~/.claude)")
     setup.add_argument("--package-root", help="destino do runtime (default: ~/.local/share/mneme-package)")
     setup.add_argument("--non-interactive", action="store_true", help="aplica sem perguntar")
     setup.add_argument("--yes", action="store_true", help="confirma automaticamente no modo interativo")

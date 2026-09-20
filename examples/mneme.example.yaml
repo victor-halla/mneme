@@ -43,13 +43,15 @@ context:
 
 providers:
   mem0:
-    enabled: false
-    host: http://<host-do-mem0>:8888
+    enabled: true
+    api: platform
+    host: https://api.mem0.ai
     user_id: <usuario>
     agent_id: mneme
     api_key_env: MEM0_API_KEY
     timeout: 20
     top_k: 8
+    # Servidor OSS próprio (`mem0 serve`): api: self-hosted e host: http://127.0.0.1:8888
   codebase_memory:
     enabled: false
     command: codebase-memory-mcp
