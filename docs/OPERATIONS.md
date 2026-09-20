@@ -22,6 +22,15 @@ O que a instância versiona e o que ela deixa de fora:
 
 Configuração assistida: `./system/scripts/setup.sh` resolve os valores que variam por máquina (raiz dos dados, remote Git da instância, backend dos binários no rclone e pasta do Drive), instala runtime, skill e CLI e cria ou adota a instância. Sem terminal interativo ele não escreve nada, apenas mostra o comando para aplicar.
 
+Para uma instalação nova, o caminho principal é o bootstrap público:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/victor-halla/mneme/main/install.sh | bash
+```
+
+Ele mantém releases em `~/.local/share/mneme/releases/`, aponta `current` para a versão ativa e usa o
+venv da própria release. O checkout e `install_skill.sh` permanecem para desenvolvimento e recuperação.
+
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
 export MNEME_ROOT="$HOME/mneme"

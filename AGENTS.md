@@ -95,7 +95,9 @@ python3 system/scripts/brain.py remember "decidimos X" --type decision
 python3 system/scripts/brain.py validate
 python3 system/scripts/brain.py code impact <projeto> <simbolo>
 python3 system/scripts/brain.py assets check
+python3 system/scripts/brain.py version
 ./system/scripts/setup.sh              # instala runtime, skill e CLI, e cria ou adota a instância
+./install.sh --help                    # bootstrap público, sem checkout permanente
 ```
 
 Sempre que uma pergunta envolver estrutura de código, o caminho é o provider de code

@@ -7,6 +7,11 @@ release; o que ainda não foi publicado fica em `Unreleased`.
 
 ### Adicionado
 
+- Bootstrap público `install.sh` para instalação por URL, com Python 3.11+, venv privado, versão ativa
+  por symlink, checksum opcional, manifesto por release, limites de extração, `flock` e suporte a
+  execução por pipe.
+- `brain version`, `brain setup --check`, arquivo canônico `VERSION` e dependência do PyYAML fixada em
+  `requirements.lock` com hashes verificados por `pip --require-hashes`.
 - `brain setup`: assistente de instalação e configuração, com modo interativo, `--non-interactive`,
   `--dry-run`, adoção de instância existente e instalação de skill para Hermes e Claude Code.
 - `brain assets check` e `brain assets sync --dry-run`.
@@ -27,6 +32,15 @@ release; o que ainda não foi publicado fica em `Unreleased`.
 
 ### Corrigido
 
+- Instalação passou a ser transacional: CLI e skill são preparadas antes da promoção e qualquer falha
+  restaura `current`, CLI e skill anteriores.
+- Republicação da mesma versão com conteúdo diferente é recusada, em vez de reutilizar silenciosamente
+  o runtime antigo.
+- Opções inválidas de `brain setup` falham antes de promover runtime, CLI e skill.
+- Reinstalação da skill agora substitui a árvore gerenciada e remove arquivos obsoletos.
+- O shim da skill resolve o runtime pelo `MNEME_PACKAGE_ROOT`, pelo layout versionado `current` ou pelo
+  layout de checkout, em vez de assumir `~/.local/share/mneme-package`.
+- CLI instalada a partir do checkout recebe também `VERSION` e reporta a versão corretamente.
 - `brain setup --dry-run` no modo texto quebrava com `KeyError: 'instance_root'`, justamente a linha
   documentada no README: a simulação devolve agora a raiz e o caminho da configuração, mostra o
   resumo e não pede confirmação, porque não há o que confirmar quando nada é escrito.

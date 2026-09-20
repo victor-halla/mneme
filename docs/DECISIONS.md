@@ -64,3 +64,12 @@ adotada, e só as chaves informadas mudam. Razão: instalação é o momento em 
 A skill é um `SKILL.md` no padrão aberto Agent Skills, então a mesma pasta serve Hermes e Claude Code
 (`install_skill.sh --harness claude`); o contrato de instruções da instância é `AGENTS.md`. Razão: o
 dado não pertence a harness nenhum, e conhecimento não deve ser reescrito por ferramenta.
+
+## 2026-09-20 — Bootstrap versionado, isolado e sem privilégios
+
+O caminho principal de instalação é um `install.sh` público e autocontido. Ele baixa o pacote, valida o
+SHA-256 quando informado, cria um venv por release, testa o runtime em staging e só então troca o symlink
+`current`. CLI e skill também são preparadas antes da promoção. Razão: o usuário não precisa manter um
+checkout nem alterar o Python do sistema, e uma falha de download ou dependência não substitui a versão
+ativa. O checkout continua sendo o caminho de desenvolvimento. Descartados: `pip --user` como instalação
+principal e atualização por cópia incremental da skill, que deixava arquivos removidos para trás.

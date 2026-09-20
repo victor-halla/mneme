@@ -14,6 +14,11 @@ de instância, sem caminho privado e sem identificador pessoal.
 - Binários por rclone em qualquer backend, com `check`, `sync` e `--dry-run`.
 - Assistente de instalação interativo e com `--non-interactive`, que adota instância existente sem
   sobrescrever configuração, e `--dry-run` para conferir.
+- Bootstrap público `install.sh`, compatível com `curl | bash`, Python 3.11+, venv privado com
+  `--require-hashes`, checksum opcional, limites de extração, `flock`, manifesto por release, promoção
+  transacional com rollback e substituição integral da skill.
+- `brain version` e `brain setup --check`; versão canônica em `VERSION`, dependência fixada em
+  `requirements.lock`.
 - Instalação da skill para Hermes e para Claude Code.
 - Suíte cobrindo raiz, instância, migração, mem0, assets, setup e endurecimento.
 
@@ -29,9 +34,12 @@ de instância, sem caminho privado e sem identificador pessoal.
   depende dos dois itens acima.
 - **Uso dentro de Claude Code e Codex**: o alvo de instalação e o formato da skill estão prontos e
   testados; falta abrir cada harness e confirmar.
+- **Primeira tag e release pública**: o bootstrap funciona contra archive de branch, tag ou URL explícita,
+  mas ainda falta publicar uma release imutável e seu SHA-256. Publicação e push exigem autorização.
 
 ## Riscos conhecidos
 
+- Versões publicadas são imutáveis por contrato do instalador: corrigir uma release exige nova versão.
 - `--dry-run` do `setup` valida o plano e a configuração, mas não sonda o destino nem o remote: um
   destino não vazio ou um remote inacessível só aparecem na aplicação real. A simulação diz o que
   seria feito, não garante que daria certo.

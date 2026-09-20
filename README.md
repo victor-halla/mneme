@@ -23,9 +23,64 @@ skills e instaladores                resources, timeline e configuração
 
 Mem0 é memória semântica derivada. Codebase Memory MCP é inteligência estrutural de código derivada.
 
-## Instalação
+## Instalação rápida
 
-O pacote é instalado a partir de um checkout Git:
+O bootstrap instala uma release isolada em um ambiente virtual, promove a versão por symlink atômico,
+instala a CLI e a skill e abre o assistente de configuração:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/victor-halla/mneme/main/install.sh | bash
+```
+
+Em automação ou em um ambiente sem terminal interativo:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/victor-halla/mneme/main/install.sh \
+  | bash -s -- --non-interactive --no-mem0
+```
+
+O comando acima usa a branch `main`. Para uma instalação reproduzível, fixe uma tag depois que ela for
+publicada e informe o checksum do artefato:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/victor-halla/mneme/v0.1.0/install.sh \
+  | bash -s -- --ref v0.1.0 --sha256 <sha256-do-artefato>
+```
+
+O bootstrap aceita `--archive-url` para releases ou mirrors próprios. Sem `--sha256`, ele ainda usa HTTPS
+e mostra o hash observado, mas não tem uma referência independente para validar integridade.
+
+Para inspecionar antes de executar:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/victor-halla/mneme/main/install.sh \
+  -o /tmp/mneme-install.sh
+less /tmp/mneme-install.sh
+bash /tmp/mneme-install.sh
+```
+
+Pré-requisitos: Linux, Bash, Python 3.11 ou superior com `venv`, Git, `curl` ou `wget` e `sha256sum`.
+O instalador não usa `sudo` e não modifica o Python do sistema: o PyYAML fica no venv privado da release.
+
+O layout da instalação pelo bootstrap é:
+
+- releases: `${MNEME_INSTALL_ROOT:-~/.local/share/mneme}/releases/<versão>`;
+- versão ativa: `${MNEME_INSTALL_ROOT:-~/.local/share/mneme}/current`;
+- CLI: `${MNEME_BIN_DIR:-~/.local/bin}/brain`;
+- dados: `${MNEME_ROOT:-~/mneme}`;
+- skill Hermes: `${HERMES_HOME:-~/.hermes/profiles/dev}/skills/brain-manager`.
+
+Se `~/.local/bin` não estiver no `PATH`, o instalador informa a correção, sem editar arquivos do shell.
+
+As dependências vêm de `requirements.lock` com hashes fixados e são verificadas por `pip --require-hashes`.
+Versões publicadas são imutáveis: reexecutar o bootstrap com o mesmo conteúdo reutiliza a release, e o mesmo
+número de versão com conteúdo diferente é recusado. Uma correção sempre entra como versão nova. A promoção é
+transacional: se qualquer passo falhar, `current`, a CLI e a skill anteriores são restaurados, e a instância
+de dados nunca é tocada.
+
+## Instalação a partir do checkout
+
+Para desenvolver ou validar o pacote antes de instalar:
 
 ```bash
 git clone https://github.com/victor-halla/mneme.git ~/mneme-src
@@ -35,21 +90,22 @@ python3 -c "import yaml" || pip3 install --user pyyaml
 ./system/scripts/install_skill.sh
 ```
 
-A primeira linha confere a dependência única do pacote, o `PyYAML`. A segunda é opcional e valida o pacote antes de instalar. A terceira instala o runtime, a skill e a CLI.
+A dependência única do runtime é o `PyYAML`. A suíte é opcional para usuários e obrigatória antes de
+contribuir. O instalador de checkout mantém o layout legado em `~/.local/share/mneme-package`.
 
-Para instalar a skill em outro perfil do Hermes, informe o diretório do perfil:
+Para instalar a skill em outro perfil do Hermes:
 
 ```bash
 ./system/scripts/install_skill.sh ~/.hermes/profiles/default
 ```
 
-Para atualizar, atualize o checkout e rode o instalador de novo; a promoção substitui as árvores gerenciadas em vez de mesclar versões:
+Para atualizar a partir do checkout, atualize-o e rode o instalador novamente:
 
 ```bash
 git -C ~/mneme-src pull && ~/mneme-src/system/scripts/install_skill.sh
 ```
 
-Para instalar em outra máquina, que lê o pacote a partir de uma máquina de desenvolvimento por SSH:
+Para instalar em outra máquina lendo o pacote de uma máquina de desenvolvimento por SSH:
 
 ```bash
 MNEME_SSH=<alias-ssh-do-servidor> \
