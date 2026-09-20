@@ -32,6 +32,9 @@ de instância, sem caminho privado e sem identificador pessoal.
 
 ## Riscos conhecidos
 
+- `--dry-run` do `setup` valida o plano e a configuração, mas não sonda o destino nem o remote: um
+  destino não vazio ou um remote inacessível só aparecem na aplicação real. A simulação diz o que
+  seria feito, não garante que daria certo.
 - Mem0 em HTTP sem TLS fora do loopback: aceitável só em rede confiável, e o `health()` avisa.
 - Sem lock entre operações concorrentes: dois `remember` simultâneos podem disputar o mesmo arquivo.
 - Janela TOCTOU entre validar e gravar caminho; risco baixo em ambiente de usuário único.

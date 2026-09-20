@@ -27,6 +27,9 @@ release; o que ainda não foi publicado fica em `Unreleased`.
 
 ### Corrigido
 
+- `brain setup --dry-run` no modo texto quebrava com `KeyError: 'instance_root'`, justamente a linha
+  documentada no README: a simulação devolve agora a raiz e o caminho da configuração, mostra o
+  resumo e não pede confirmação, porque não há o que confirmar quando nada é escrito.
 - `assets sync` quebrava com traceback quando o rclone não estava instalado.
 - A flag de pasta do Drive era enviada a backends não-Drive, que a ignoravam em silêncio.
 - Mem0 desativado ainda tentava a rede e enfileirava pendência.

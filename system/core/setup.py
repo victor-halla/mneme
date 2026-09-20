@@ -302,7 +302,14 @@ def apply_plan(
 
     if dry_run:
         steps.append({"step": "dry-run", "detail": "nada foi escrito"})
-        return {"ok": True, "dry_run": True, "steps": steps, "warnings": warnings}
+        return {
+            "ok": True,
+            "dry_run": True,
+            "instance_root": str(instance_root),
+            "config": str(instance_root / "mneme.yaml"),
+            "steps": steps,
+            "warnings": warnings,
+        }
 
     if plan.install:
         environment.setdefault("HOME", str(base))

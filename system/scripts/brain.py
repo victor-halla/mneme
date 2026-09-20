@@ -539,13 +539,18 @@ def cmd_setup(args) -> int:
     plan.install = not args.no_install
     plan.commit = not args.no_commit
 
+    dry_run = bool(getattr(args, "dry_run", False))
     interactive = not args.non_interactive and sys.stdin.isatty()
+    described = False
     if interactive:
         plan = setup_mod.interactive_plan(plan, home=home)
         print()
         print(setup_mod.describe(plan))
         print()
-        if args.yes or input("aplicar? [s/N]: ").strip().lower() in {"s", "sim", "y", "yes"}:
+        described = True
+        if dry_run:
+            pass  # simulação não escreve: não há o que confirmar
+        elif args.yes or input("aplicar? [s/N]: ").strip().lower() in {"s", "sim", "y", "yes"}:
             pass
         else:
             print("cancelado")
@@ -555,12 +560,19 @@ def cmd_setup(args) -> int:
         print(setup_mod.describe(plan))
         print()
         print("Para aplicar sem perguntas, repita com --non-interactive e os valores desejados.")
-        print("Para conferir sem escrever: acrescente --dry-run.")
+        print("Para simular sem escrever, use --dry-run (com --non-interactive quando não houver terminal).")
         return 2
 
-    result = setup_mod.apply_plan(plan, home=home, dry_run=getattr(args, "dry_run", False))
+    result = setup_mod.apply_plan(plan, home=home, dry_run=dry_run)
     if args.json:
         _emit(result, True)
+    elif result.get("ok") and result.get("dry_run"):
+        print(f"{_mark(True)} simulação: nada foi escrito")
+        if not described:
+            print(setup_mod.describe(plan))
+        print()
+        print(f"raiz da instância: {result['instance_root']}")
+        print("para aplicar de verdade, repita sem --dry-run")
     elif result.get("ok"):
         print(f"{_mark(True)} configuração aplicada em {result['instance_root']}")
         if result.get("files_created"):

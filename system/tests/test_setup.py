@@ -8,6 +8,7 @@ esperar por entrada quando não há terminal.
 from __future__ import annotations
 
 import os
+import pty
 import shutil
 import subprocess
 import sys
@@ -355,6 +356,85 @@ class SetupTest(unittest.TestCase):
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertTrue((self.instance / "mneme.yaml").is_file())
         self.assertFalse(self.config()["providers"]["mem0"]["enabled"])
+
+    # -- simulação (dry-run) ---------------------------------------------------
+
+    def test_dry_run_nao_escreve_e_devolve_o_resumo_da_instancia(self) -> None:
+        result = self.apply(dry_run=True)
+
+        self.assertTrue(result["ok"], result)
+        self.assertTrue(result["dry_run"])
+        self.assertEqual(result["instance_root"], str(self.instance))
+        self.assertEqual(result["config"], str(self.instance / "mneme.yaml"))
+        self.assertFalse(self.instance.exists(), "dry-run não pode criar a instância")
+        self.assertFalse((self.home / ".local").exists(), "dry-run não pode instalar o runtime")
+
+    def test_dry_run_com_non_interactive_mostra_a_simulacao_sem_escrever(self) -> None:
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(BRAIN_PY),
+                "setup",
+                "--non-interactive",
+                "--dry-run",
+                "--instance-root",
+                str(self.instance),
+                "--hermes-profile",
+                str(self.profile),
+                "--package-root",
+                str(self.package_root),
+            ],
+            cwd=self.home,
+            env=self.env,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertNotIn("Traceback", completed.stderr)
+        self.assertIn("nada foi escrito", completed.stdout)
+        self.assertFalse(self.instance.exists())
+        self.assertFalse((self.home / ".local").exists())
+
+    @unittest.skipUnless(sys.platform != "win32", "pty só existe em POSIX")
+    def test_comando_do_terminal_com_dry_run_simula_sem_perguntar_e_sem_escrever(self) -> None:
+        """O `--dry-run` documentado no README, com terminal de verdade."""
+
+        master, slave = pty.openpty()
+        self.addCleanup(os.close, master)
+        process = subprocess.Popen(
+            [
+                sys.executable,
+                str(BRAIN_PY),
+                "setup",
+                "--dry-run",
+                "--instance-root",
+                str(self.instance),
+                "--hermes-profile",
+                str(self.profile),
+                "--package-root",
+                str(self.package_root),
+            ],
+            cwd=self.home,
+            env=self.env,
+            stdin=slave,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        os.close(slave)
+        os.write(master, b"\n" * 12)  # aceita os padrões das 7 perguntas
+
+        stdout, stderr = process.communicate(timeout=120)
+
+        self.assertEqual(process.returncode, 0, stderr)
+        self.assertNotIn("Traceback", stderr)
+        self.assertIn("nada foi escrito", stdout)
+        self.assertNotIn("aplicar?", stdout, "simulação não escreve: não deve pedir confirmação")
+        self.assertFalse(self.instance.exists())
+        self.assertFalse((self.home / ".local").exists())
 
     # -- modo interativo -------------------------------------------------------
 
