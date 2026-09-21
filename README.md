@@ -1,5 +1,17 @@
 # Mneme
 
+```text
+███╗   ███╗███╗   ██╗███████╗███╗   ███╗███████╗
+████╗ ████║████╗  ██║██╔════╝████╗ ████║██╔════╝
+██╔████╔██║██╔██╗ ██║█████╗  ██╔████╔██║█████╗
+██║╚██╔╝██║██║╚██╗██║██╔══╝  ██║╚██╔╝██║██╔══╝
+██║ ╚═╝ ██║██║ ╚████║███████╗██║ ╚═╝ ██║███████╗
+╚═╝     ╚═╝╚═╝  ╚═══╝╚══════╝╚═╝     ╚═╝╚══════╝
+
+             M N E M E
+       persistent agent memory
+```
+
 Pacote reutilizável para manter uma memória canônica em Markdown/YAML, versionada em Git e compartilhada entre agentes.
 
 Este repositório é o **pacote**: código, schemas, templates, skill e documentação genérica. Ele não guarda dados de nenhuma instância.
